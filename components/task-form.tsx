@@ -72,9 +72,10 @@ const CODING_AGENTS = [
 // Model options for each agent
 const AGENT_MODELS = {
   claude: [
-    { value: 'claude-sonnet-5', label: 'Sonnet 5' },
-    { value: 'claude-opus-5', label: 'Opus 5' },
-    { value: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5' },
+    { value: 'claude-haiku-5-5', label: 'Haiku 5.5' },
+    { value: 'claude-sonnet-5-5', label: 'Sonnet 5.5' },
+    { value: 'claude-opus-5-5', label: 'Opus 5.5' },
+    { value: 'claude-fable-5-1', label: 'Fable 5.1' },
   ],
   codex: [
     { value: 'openai/gpt-5.1', label: 'GPT-5.1' },
@@ -114,15 +115,16 @@ const AGENT_MODELS = {
     { value: 'gpt-5-mini', label: 'GPT-5 mini' },
     { value: 'gpt-5-nano', label: 'GPT-5 nano' },
     { value: 'gpt-4.1', label: 'GPT-4.1' },
-    { value: 'claude-sonnet-5', label: 'Sonnet 5' },
-    { value: 'claude-opus-5', label: 'Opus 5' },
-    { value: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5' },
+    { value: 'claude-haiku-5-5', label: 'Haiku 5.5' },
+    { value: 'claude-sonnet-5-5', label: 'Sonnet 5.5' },
+    { value: 'claude-opus-5-5', label: 'Opus 5.5' },
+    { value: 'claude-fable-5-1', label: 'Fable 5.1' },
   ],
 } as const
 
 // Default models for each agent
 const DEFAULT_MODELS = {
-  claude: 'claude-sonnet-5',
+  claude: 'claude-sonnet-5-5',
   codex: 'openai/gpt-5.1',
   copilot: 'claude-sonnet-4.5',
   cursor: 'auto',
