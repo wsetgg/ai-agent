@@ -4,11 +4,11 @@ This workspace copy is based on [Vercel's open-source coding-agent-template](htt
 
 ## Put the project in your GitHub account
 
-Create a **private** GitHub repository named `my-ai-agent`, then upload this project folder to that repository. Keep the repository private so your custom source stays under your account.
+The private repository [`wsetgg/ai-agent`](https://github.com/wsetgg/ai-agent) is ready for this project. Keep it private so your source stays under your account.
 
 ## Deploy it with Vercel
 
-In Vercel, choose **Add New → Project**, import your private `my-ai-agent` repository, and deploy it. Add the required project settings from the template's [deployment guide](https://github.com/vercel-labs/coding-agent-template#deploy-your-own). The app needs a Postgres database, Vercel Sandbox credentials, encryption secrets, and one sign-in provider (GitHub or Vercel OAuth).
+In Vercel, choose **Add New → Project**, import your private `wsetgg/ai-agent` repository, and deploy it. Add the required project settings from the template's [deployment guide](https://github.com/vercel-labs/coding-agent-template#deploy-your-own). The app needs a Postgres database, Vercel Sandbox credentials, encryption secrets, and one sign-in provider (GitHub or Vercel OAuth).
 
 ## Add your Anthropic key
 
