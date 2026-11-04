@@ -39,6 +39,7 @@ interface HomePageContentProps {
   initialEnableBrowser?: boolean
   maxSandboxDuration?: number
   user?: Session['user'] | null
+  initialStars?: number
 }
 
 export function HomePageContent({
