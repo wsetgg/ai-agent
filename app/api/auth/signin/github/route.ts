@@ -7,9 +7,18 @@ import { getSessionFromReq } from '@/lib/session/server'
 export async function GET(req: NextRequest): Promise<Response> {
   // Check if user is already authenticated with Vercel
   const session = await getSessionFromReq(req)
+  const isSignInFlow = !session?.user
+  const canonicalOrigin =
+    process.env.VERCEL_ENV === 'production' ? 'https://ai-agent-plainvest.vercel.app' : req.nextUrl.origin
+
+  // Always start production GitHub sign-in on the stable app domain so the
+  // OAuth callback matches the URL registered with GitHub.
+  if (isSignInFlow && req.nextUrl.origin !== canonicalOrigin) {
+    return Response.redirect(new URL(`${req.nextUrl.pathname}${req.nextUrl.search}`, canonicalOrigin))
+  }
 
   const clientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID
-  const redirectUri = `${req.nextUrl.origin}/api/auth/github/callback`
+  const redirectUri = `${canonicalOrigin}/api/auth/github/callback`
 
   if (!clientId) {
     return Response.redirect(new URL('/?error=github_not_configured', req.url))
@@ -23,7 +32,6 @@ export async function GET(req: NextRequest): Promise<Response> {
 
   // If user is already authenticated with Vercel, treat this as a "Connect GitHub" flow
   // Otherwise, treat it as a "Sign in with GitHub" flow
-  const isSignInFlow = !session?.user
   const authMode = isSignInFlow ? 'signin' : 'connect'
 
   // Add a query parameter to show a toast message after redirect
