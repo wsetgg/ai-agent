@@ -148,7 +148,7 @@ export async function installClaudeCLI(
         }
       }
 
-      const modelToUse = selectedModel || 'claude-sonnet-4-5'
+      const modelToUse = selectedModel || 'claude-sonnet-5'
       const configFileCmd = `mkdir -p $HOME/.config/claude && cat > $HOME/.config/claude/config.json << 'EOF'
 {
   "api_key": "${apiKey}",
@@ -248,7 +248,7 @@ export async function executeClaudeInSandbox(
     }
 
     // Log what we're trying to do
-    const modelToUse = selectedModel || 'claude-sonnet-4-5'
+    const modelToUse = selectedModel || 'claude-sonnet-5'
     if (logger) {
       await logger.info('Attempting to execute Claude CLI...')
     }
