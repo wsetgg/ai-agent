@@ -20,9 +20,9 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Coding Agent Template',
+  title: 'Plainvest AI',
   description:
-    'AI-powered coding agent template supporting Claude Code, OpenAI Codex CLI, Cursor CLI, and opencode with Vercel Sandbox',
+    'A private AI coding workspace for building, fixing, and exploring software with multiple coding agents.'
 }
 
 export default function RootLayout({

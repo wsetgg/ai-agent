@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Loader2, ArrowUp, Settings, X, Cable, Users, Globe } from 'lucide-react'
+import { Loader2, ArrowUp, Settings, X, Cable, Users, Globe, Sparkles } from 'lucide-react'
 import { Claude, Codex, Copilot, Cursor, Gemini, OpenCode } from '@/components/logos'
 import { setInstallDependencies, setMaxDuration, setKeepAlive, setEnableBrowser } from '@/lib/utils/cookies'
 import { useConnectors } from '@/components/connectors-provider'
@@ -398,51 +398,53 @@ export function TaskForm({
   }
 
   return (
-    <div className="w-full max-w-2xl">
-      <div className="text-center mb-8">
-        <h1 className="text-4xl font-bold mb-4">Coding Agent Template</h1>
-        <p className="text-lg text-muted-foreground mb-2">
-          Multi-agent AI coding platform powered by{' '}
-          <a
-            href="https://vercel.com/docs/sandbox"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline hover:no-underline"
-          >
-            Vercel Sandbox
-          </a>{' '}
-          and{' '}
-          <a
-            href="https://vercel.com/docs/ai-gateway"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline hover:no-underline"
-          >
-            AI Gateway
-          </a>
+    <div className="relative z-10 mx-auto w-full max-w-3xl">
+      <div className="mb-10 text-center sm:mb-12">
+        <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-blue-200/70 bg-white/75 px-4 py-2 text-[11px] font-semibold tracking-[0.16em] text-blue-700 shadow-[0_8px_28px_-18px_rgba(37,99,235,0.48)] backdrop-blur-xl">
+          <Sparkles className="h-3.5 w-3.5" />
+          Private AI coding workspace
+        </div>
+        <h1 className="mx-auto max-w-3xl text-balance text-5xl font-semibold leading-[1.04] tracking-[-0.055em] text-slate-950 sm:text-6xl md:text-7xl">
+          Make your next big idea{' '}
+          <span className="bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 bg-clip-text text-transparent">
+            real.
+          </span>
+        </h1>
+        <p className="mx-auto mt-5 max-w-xl text-pretty text-base leading-relaxed text-slate-600 sm:text-lg">
+          Describe the change. Choose an agent. Let it build in a sandbox connected to your repository.
         </p>
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+          {['Multiple coding agents', 'Private repositories', 'Sandboxed builds'].map((feature) => (
+            <span
+              key={feature}
+              className="rounded-full border border-blue-100 bg-white/65 px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm shadow-blue-100/50"
+            >
+              {feature}
+            </span>
+          ))}
+        </div>
       </div>
 
       <form onSubmit={handleSubmit}>
-        <div className="relative border rounded-2xl shadow-sm overflow-hidden bg-muted/30 cursor-text">
+        <div className="home-prompt-card relative cursor-text">
           {/* Prompt Input */}
           <div className="relative bg-transparent">
             <Textarea
               ref={textareaRef}
               id="prompt"
-              placeholder="Describe what you want the AI agent to do..."
+              placeholder="What should your coding agent build, fix, or explore?"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               onKeyDown={handleTextareaKeyDown}
               disabled={isSubmitting}
               required
               rows={4}
-              className="w-full border-0 resize-none focus-visible:ring-0 focus-visible:ring-offset-0 p-4 text-base !bg-transparent shadow-none!"
+              className="min-h-[150px] w-full resize-none border-0 bg-transparent p-5 text-base leading-relaxed text-slate-800 shadow-none! focus-visible:ring-0 focus-visible:ring-offset-0 sm:min-h-[170px] sm:p-6"
             />
           </div>
 
           {/* Agent Selection */}
-          <div className="p-4">
+          <div className="home-prompt-controls p-3 sm:p-4">
             <div className="flex items-center justify-between gap-2">
               {/* Left side: Agent, Model, and Option Chips */}
               <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -761,7 +763,7 @@ export function TaskForm({
                     type="submit"
                     disabled={isSubmitting || !prompt.trim()}
                     size="sm"
-                    className="rounded-full h-8 w-8 p-0"
+                    className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 p-0 text-white shadow-md shadow-blue-600/25 transition-all hover:scale-105 hover:shadow-lg hover:shadow-blue-600/30 disabled:pointer-events-none disabled:opacity-40"
                   >
                     {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUp className="h-4 w-4" />}
                   </Button>
