@@ -61,6 +61,7 @@ const CODING_AGENTS = [
 
 const AGENT_MODELS = {
   claude: [
+    { value: 'reflection/beam-free', label: 'Beam 1.0 (Free)' },
     { value: 'claude-sonnet-4-5', label: 'Sonnet 4.5' },
     { value: 'anthropic/claude-opus-4.6', label: 'Opus 4.6' },
     { value: 'claude-haiku-4-5', label: 'Haiku 4.5' },
@@ -105,7 +106,7 @@ const AGENT_MODELS = {
 } as const
 
 const DEFAULT_MODELS = {
-  claude: 'claude-sonnet-4-5',
+  claude: 'reflection/beam-free',
   codex: 'openai/gpt-5.1',
   copilot: 'claude-sonnet-4.5',
   cursor: 'auto',
