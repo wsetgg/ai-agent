@@ -72,6 +72,7 @@ const CODING_AGENTS = [
 // Model options for each agent
 const AGENT_MODELS = {
   claude: [
+    { value: 'reflection/beam-free', label: 'Beam 1.0 (Free)' },
     { value: 'claude-haiku-5-5', label: 'Haiku 5.5' },
     { value: 'claude-sonnet-5-5', label: 'Sonnet 5.5' },
     { value: 'claude-opus-5-5', label: 'Opus 5.5' },
@@ -124,7 +125,7 @@ const AGENT_MODELS = {
 
 // Default models for each agent
 const DEFAULT_MODELS = {
-  claude: 'claude-sonnet-5-5',
+  claude: 'reflection/beam-free',
   codex: 'openai/gpt-5.1',
   copilot: 'claude-sonnet-4.5',
   cursor: 'auto',
@@ -134,7 +135,7 @@ const DEFAULT_MODELS = {
 
 // API key requirements for each agent
 const AGENT_API_KEY_REQUIREMENTS: Record<string, Provider[]> = {
-  claude: ['anthropic'],
+  claude: ['aigateway'],
   codex: ['aigateway'], // Uses AI Gateway for OpenAI proxy
   copilot: [], // Uses user's GitHub account token automatically
   cursor: ['cursor'],
@@ -282,7 +283,12 @@ export function TaskForm({
 
       // Load saved model for this agent or use default
       const agentModels = AGENT_MODELS[selectedAgent as keyof typeof AGENT_MODELS]
-      if (savedModel && agentModels?.some((model) => model.value === savedModel)) {
+      const migratePaidClaudeDefault =
+        selectedAgent === 'claude' && ['claude-sonnet-5-5', 'claude-sonnet-4-5'].includes(savedModel || '')
+      if (migratePaidClaudeDefault) {
+        setSelectedModel(DEFAULT_MODELS.claude)
+        setSavedModel(DEFAULT_MODELS.claude)
+      } else if (savedModel && agentModels?.some((model) => model.value === savedModel)) {
         setSelectedModel(savedModel)
       } else {
         const defaultModel = DEFAULT_MODELS[selectedAgent as keyof typeof DEFAULT_MODELS]

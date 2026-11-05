@@ -224,11 +224,15 @@ export function HomePageContent({
         return
       }
 
+      const savedClaudeModel = localStorage.getItem('last-selected-model-claude')
       const taskData = {
         prompt: 'Work on this repository',
         repoUrl: repoUrl,
         selectedAgent: localStorage.getItem('last-selected-agent') || 'claude',
-        selectedModel: localStorage.getItem('last-selected-model-claude') || 'claude-sonnet-4-5',
+        selectedModel:
+          savedClaudeModel === 'claude-sonnet-5-5' || savedClaudeModel === 'claude-sonnet-4-5'
+            ? 'reflection/beam-free'
+            : savedClaudeModel || 'reflection/beam-free',
         installDependencies: true,
         maxDuration: 300,
         keepAlive: false,
