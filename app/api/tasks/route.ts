@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error: 'Rate limit exceeded',
-          message: `You have reached the daily limit of ${rateLimit.total} messages (tasks + follow-ups). Your limit will reset at ${rateLimit.resetAt.toISOString()}`,
+          message: `You have reached the daily limit of ${rateLimit.total} user requests (new tasks and follow-ups). Failed or stopped runs do not count. Your limit resets at ${rateLimit.resetAt.toISOString()}`,
           remaining: rateLimit.remaining,
           total: rateLimit.total,
           resetAt: rateLimit.resetAt.toISOString(),
