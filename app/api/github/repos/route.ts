@@ -1,6 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUserGitHubToken } from '@/lib/github/user-token'
 
+interface GitHubRepo {
+  name: string
+  full_name: string
+  description?: string
+  private: boolean
+  clone_url: string
+  updated_at: string
+  language?: string
+  owner: {
+    login: string
+  }
+}
+
+function formatRepo(repo: GitHubRepo) {
+  return {
+    name: repo.name,
+    full_name: repo.full_name,
+    description: repo.description,
+    private: repo.private,
+    clone_url: repo.clone_url,
+    updated_at: repo.updated_at,
+    language: repo.language,
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const token = await getUserGitHubToken(request)
@@ -9,129 +34,116 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'GitHub not connected' }, { status: 401 })
     }
 
-    const { searchParams } = new URL(request.url)
-    const owner = searchParams.get('owner')
+    const owner = new URL(request.url).searchParams.get('owner')?.trim()
 
     if (!owner) {
       return NextResponse.json({ error: 'Owner parameter is required' }, { status: 400 })
     }
 
-    // First, get the authenticated user to check if this is their repos
-    const userResponse = await fetch('https://api.github.com/user', {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/vnd.github.v3+json',
-      },
-    })
-
-    // Do not fall through to public/org endpoints with an invalid token.
-    // Those requests also return 401, but the old code wrapped that as a 500,
-    // hiding the actual expired/revoked GitHub authorization from the UI.
-    if (!userResponse.ok) {
-      const status = userResponse.status === 401 ? 401 : userResponse.status === 403 ? 403 : 502
-      return NextResponse.json(
-        {
-          error:
-            status === 401
-              ? 'GitHub authorization has expired. Reconnect your GitHub account to continue.'
-              : status === 403
-                ? 'GitHub denied access. Reconnect your account or check repository permissions.'
-                : 'Unable to verify GitHub authorization.',
-          reconnectRequired: status === 401 || status === 403,
-        },
-        { status },
-      )
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/vnd.github.v3+json',
     }
 
-    const user = await userResponse.json()
-    const isAuthenticatedUser = user.login === owner
+    const perPage = 100
 
-    interface GitHubRepo {
-      name: string
-      full_name: string
-      description?: string
-      private: boolean
-      clone_url: string
-      updated_at: string
-      language?: string
-    }
-
-    // Fetch all repositories by paginating through all pages
-    const allRepos: GitHubRepo[] = []
+    // First query the repositories this token can actually access. GitHub's
+    // /user/repos endpoint includes owned, collaborator, and organization-member
+    // repositories; filtering by owner preserves private collaborator access.
+    const accessibleRepos: GitHubRepo[] = []
     let page = 1
-    const perPage = 100 // GitHub's maximum per page
 
     while (true) {
-      let apiUrl: string
-
-      if (isAuthenticatedUser) {
-        // Use /user/repos for authenticated user to get private repos, but only owned repos
-        apiUrl = `https://api.github.com/user/repos?sort=name&direction=asc&per_page=${perPage}&page=${page}&visibility=all&affiliation=owner`
-      } else {
-        // Check if it's an organization
-        const orgResponse = await fetch(`https://api.github.com/orgs/${owner}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: 'application/vnd.github.v3+json',
-          },
-        })
-
-        if (orgResponse.ok) {
-          // Use /orgs/{org}/repos for organizations to get private repos
-          apiUrl = `https://api.github.com/orgs/${owner}/repos?sort=name&direction=asc&per_page=${perPage}&page=${page}`
-        } else {
-          // Fallback to /users/{owner}/repos (public only)
-          apiUrl = `https://api.github.com/users/${owner}/repos?sort=name&direction=asc&per_page=${perPage}&page=${page}`
-        }
-      }
-
-      const response = await fetch(apiUrl, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/vnd.github.v3+json',
-        },
-      })
+      const response = await fetch(
+        `https://api.github.com/user/repos?sort=name&direction=asc&per_page=${perPage}&page=${page}&visibility=all&affiliation=owner,collaborator,organization_member`,
+        { headers },
+      )
 
       if (!response.ok) {
-        throw new Error(`GitHub API error: ${response.status}`)
+        const status = response.status === 401 ? 401 : response.status === 403 ? 403 : 502
+        return NextResponse.json(
+          {
+            error:
+              status === 401
+                ? 'GitHub authorization has expired. Reconnect your GitHub account to continue.'
+                : status === 403
+                  ? 'GitHub denied access. Reconnect your account or check repository permissions.'
+                  : 'Unable to list repositories available to your GitHub account.',
+            reconnectRequired: status === 401 || status === 403,
+          },
+          { status },
+        )
       }
 
-      const repos = await response.json()
+      const repos: GitHubRepo[] = await response.json()
+      accessibleRepos.push(
+        ...repos.filter((repo) => repo.owner.login.toLowerCase() === owner.toLowerCase()),
+      )
 
-      // If we get fewer repos than the per_page limit, we've reached the end
-      if (repos.length === 0) {
-        break
-      }
-
-      allRepos.push(...repos)
-
-      // If we got fewer than the max per page, we've reached the end
       if (repos.length < perPage) {
         break
       }
 
-      page++
+      page += 1
     }
 
-    // Remove duplicates based on full_name (owner/repo)
-    const uniqueRepos = allRepos.filter(
-      (repo, index, self) => index === self.findIndex((r) => r.full_name === repo.full_name),
-    )
+    if (accessibleRepos.length > 0) {
+      const uniqueRepos = accessibleRepos.filter(
+        (repo, index, self) => index === self.findIndex((item) => item.full_name === repo.full_name),
+      )
+      uniqueRepos.sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()))
+      return NextResponse.json(uniqueRepos.map(formatRepo))
+    }
 
-    // Sort alphabetically by name (GitHub API sort might not be perfect)
+    // Preserve the previous ability to browse public repositories owned by
+    // someone else when the current user has no direct affiliation with them.
+    const orgResponse = await fetch(`https://api.github.com/orgs/${encodeURIComponent(owner)}`, { headers })
+    const isOrganization = orgResponse.ok
+    const publicRepos: GitHubRepo[] = []
+    page = 1
+
+    while (true) {
+      const endpoint = isOrganization
+        ? `https://api.github.com/orgs/${encodeURIComponent(owner)}/repos?sort=name&direction=asc&per_page=${perPage}&page=${page}`
+        : `https://api.github.com/users/${encodeURIComponent(owner)}/repos?sort=name&direction=asc&per_page=${perPage}&page=${page}`
+
+      const response = await fetch(endpoint, { headers })
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          return NextResponse.json([])
+        }
+        const status = response.status === 401 ? 401 : response.status === 403 ? 403 : 502
+        return NextResponse.json(
+          {
+            error:
+              status === 401
+                ? 'GitHub authorization has expired. Reconnect your GitHub account to continue.'
+                : status === 403
+                  ? 'GitHub denied access. Reconnect your account or check repository permissions.'
+                  : 'Unable to fetch repositories for this owner.',
+            reconnectRequired: status === 401 || status === 403,
+          },
+          { status },
+        )
+      }
+
+      const repos: GitHubRepo[] = await response.json()
+      publicRepos.push(...repos)
+
+      if (repos.length < perPage) {
+        break
+      }
+
+      page += 1
+    }
+
+    const uniqueRepos = publicRepos.filter(
+      (repo, index, self) => index === self.findIndex((item) => item.full_name === repo.full_name),
+    )
     uniqueRepos.sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()))
 
-    return NextResponse.json(
-      uniqueRepos.map((repo) => ({
-        name: repo.name,
-        full_name: repo.full_name,
-        description: repo.description,
-        private: repo.private,
-        clone_url: repo.clone_url,
-        updated_at: repo.updated_at,
-        language: repo.language,
-      })),
-    )
+    return NextResponse.json(uniqueRepos.map(formatRepo))
   } catch (error) {
     console.error('Error fetching GitHub repositories:', error)
     return NextResponse.json({ error: 'Failed to fetch repositories' }, { status: 500 })
