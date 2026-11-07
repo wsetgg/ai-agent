@@ -63,6 +63,12 @@ export async function GET(req: NextRequest) {
       })
     }
 
+    // NVIDIA NIM uses the project-level NVIDIA_API_KEY environment variable.
+    if (agent === 'opencode' && model?.startsWith('nvidia/')) {
+      const hasKey = !!process.env.NVIDIA_API_KEY
+      return NextResponse.json({ success: true, hasKey, provider: 'nvidia', agentName: 'OpenCode' })
+    }
+
     // Override provider based on model for multi-provider agents
     if (model && (agent === 'cursor' || agent === 'opencode')) {
       if (isAnthropicModel(model)) {
