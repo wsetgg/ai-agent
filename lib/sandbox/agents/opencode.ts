@@ -20,7 +20,6 @@ function createOpenCodeOutputStream(
     const trimmed = line.trim()
     if (!trimmed) return
 
-    onOutput()
     const message = redactSensitiveInfo(trimmed)
     logQueue = logQueue
       .then(() => (type === 'error' ? logger.error(`[OpenCode stderr] ${message}`) : logger.info(`[OpenCode stdout] ${message}`)))
