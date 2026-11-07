@@ -24,11 +24,27 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    let isAuthenticatedUser = false
-    if (userResponse.ok) {
-      const user = await userResponse.json()
-      isAuthenticatedUser = user.login === owner
+    // Do not fall through to public/org endpoints with an invalid token.
+    // Those requests also return 401, but the old code wrapped that as a 500,
+    // hiding the actual expired/revoked GitHub authorization from the UI.
+    if (!userResponse.ok) {
+      const status = userResponse.status === 401 ? 401 : userResponse.status === 403 ? 403 : 502
+      return NextResponse.json(
+        {
+          error:
+            status === 401
+              ? 'GitHub authorization has expired. Reconnect your GitHub account to continue.'
+              : status === 403
+                ? 'GitHub denied access. Reconnect your account or check repository permissions.'
+                : 'Unable to verify GitHub authorization.',
+          reconnectRequired: status === 401 || status === 403,
+        },
+        { status },
+      )
     }
+
+    const user = await userResponse.json()
+    const isAuthenticatedUser = user.login === owner
 
     interface GitHubRepo {
       name: string
