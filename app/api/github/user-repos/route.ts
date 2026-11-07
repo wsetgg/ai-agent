@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
     // If there's a search query, use GitHub search API
     if (search.trim()) {
       // Search for repos the user has access to matching the query
-      const searchQuery = encodeURIComponent(`${search} in:name user:${username} fork:true`)
+      const searchQuery = encodeURIComponent(`${search} in:name fork:true`)
       const searchUrl = `https://api.github.com/search/repositories?q=${searchQuery}&sort=updated&order=desc&per_page=${perPage}&page=${page}`
 
       const searchResponse = await fetch(searchUrl, {
@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
     const githubPage = Math.ceil((page * perPage) / githubPerPage)
 
     // Fetch user's repos (owned repos, sorted by recently updated)
-    const apiUrl = `https://api.github.com/user/repos?sort=updated&direction=desc&per_page=${githubPerPage}&page=${githubPage}&visibility=all&affiliation=owner,organization_member`
+    const apiUrl = `https://api.github.com/user/repos?sort=updated&direction=desc&per_page=${githubPerPage}&page=${githubPage}&visibility=all&affiliation=owner,collaborator,organization_member`
 
     const response = await fetch(apiUrl, {
       headers: {
