@@ -390,25 +390,9 @@ EOF`
       }
     }
 
-    // Use the 'opencode run' command for non-interactive execution as documented at https://opencode.ai/docs/cli/
-    // This command allows us to pass a prompt directly and get results without the TUI
-    // Add model parameter if provided
-    const modelFlag = selectedModel ? ` --model "${selectedModel}"` : ''
-
-    // Add session resumption flags if resuming
-    let sessionFlags = ''
+    // Add session resumption flags if resuming.
     if (isResumed) {
-      if (sessionId) {
-        sessionFlags = ` --session "${sessionId}"`
-        if (logger) {
-          await logger.info('Resuming specific OpenCode session')
-        }
-      } else {
-        sessionFlags = ' --continue'
-        if (logger) {
-          await logger.info('Continuing last OpenCode session')
-        }
-      }
+      await logger.info(sessionId ? 'Resuming specific OpenCode session' : 'Continuing last OpenCode session')
     }
 
     const commandArgs = [
@@ -465,7 +449,7 @@ EOF`
     const gitStatusCheck = await runAndLogCommand(sandbox, 'git', ['status', '--porcelain'], logger)
     const hasChanges = gitStatusCheck.success && gitStatusCheck.output?.trim()
 
-    if (executeResult.success || executeResult.exitCode === 0) {
+    if (executeResult.exitCode === 0) {
       const successMsg = `OpenCode executed successfully${hasChanges ? ' (Changes detected)' : ' (No changes made)'}`
       if (logger) {
         await logger.success(successMsg)
