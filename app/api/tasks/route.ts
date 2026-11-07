@@ -6,7 +6,7 @@ import { generateId } from '@/lib/utils/id'
 import { createSandbox } from '@/lib/sandbox/creation'
 import { executeAgentInSandbox, AgentType } from '@/lib/sandbox/agents'
 import { pushChangesToBranch, shutdownSandbox } from '@/lib/sandbox/git'
-import { unregisterSandbox } from '@/lib/sandbox/sandbox-registry'
+import { getSandbox, unregisterSandbox } from '@/lib/sandbox/sandbox-registry'
 import { detectPackageManager } from '@/lib/sandbox/package-manager'
 import { runCommandInSandbox, runInProject, PROJECT_DIR } from '@/lib/sandbox/commands'
 import { detectPortFromRepo } from '@/lib/sandbox/port-detection'
@@ -22,6 +22,9 @@ import { getGitHubUser } from '@/lib/github/client'
 import { getUserApiKeys } from '@/lib/api-keys/user-keys'
 import { checkRateLimit } from '@/lib/utils/rate-limit'
 import { getMaxSandboxDuration } from '@/lib/db/settings'
+
+// Keep the task worker inside the 5-minute limit configured for this Vercel function.
+export const maxDuration = 300
 
 export async function GET() {
   try {
@@ -285,22 +288,35 @@ async function processTaskWithTimeout(
     email: string | null
   } | null,
 ) {
-  const TASK_TIMEOUT_MS = maxDuration * 60 * 1000 // Convert minutes to milliseconds
+  // This route is configured for 300 seconds. Stop task work before the hard
+  // Vercel deadline so the sandbox can be stopped and the task status persisted.
+  const FUNCTION_MAX_DURATION_MS = 300_000
+  const CLEANUP_BUFFER_MS = 30_000
+  const TASK_TIMEOUT_MS = Math.min(maxDuration * 60 * 1000, FUNCTION_MAX_DURATION_MS - CLEANUP_BUFFER_MS)
+  const timeoutMessage =
+    TASK_TIMEOUT_MS === FUNCTION_MAX_DURATION_MS - CLEANUP_BUFFER_MS
+      ? 'Task was stopped after 4 minutes 30 seconds to leave cleanup time before this deployment’s 5-minute Vercel function limit. Longer tasks need a durable background worker or a deployment with a higher function limit.'
+      : `Task execution timed out after ${Math.ceil(TASK_TIMEOUT_MS / 60_000)} minutes.`
 
-  // Add a warning 1 minute before timeout
+  let timedOut = false
+  let warningTimeout: ReturnType<typeof setTimeout> | undefined
+  let taskTimeout: ReturnType<typeof setTimeout> | undefined
+
+  // Add a warning 1 minute before the task execution deadline.
   const warningTimeMs = Math.max(TASK_TIMEOUT_MS - 60 * 1000, 0)
-  const warningTimeout = setTimeout(async () => {
+  warningTimeout = setTimeout(async () => {
     try {
       const warningLogger = createTaskLogger(taskId)
-      await warningLogger.info('Task is approaching timeout, will complete soon')
+      await warningLogger.info('Task is approaching its execution deadline; cleanup time is reserved')
     } catch (error) {
       console.error('Failed to add timeout warning:', error)
     }
   }, warningTimeMs)
 
   const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => {
-      reject(new Error(`Task execution timed out after ${maxDuration} minutes`))
+    taskTimeout = setTimeout(() => {
+      timedOut = true
+      reject(new Error(timeoutMessage))
     }, TASK_TIMEOUT_MS)
   })
 
@@ -319,27 +335,36 @@ async function processTaskWithTimeout(
         apiKeys,
         githubToken,
         githubUser,
+        () => timedOut,
       ),
       timeoutPromise,
     ])
-
-    // Clear the warning timeout if task completes successfully
-    clearTimeout(warningTimeout)
   } catch (error: unknown) {
-    // Clear the warning timeout on any error
-    clearTimeout(warningTimeout)
-    // Handle timeout specifically
-    if (error instanceof Error && error.message?.includes('timed out after')) {
-      console.error('Task timed out:', taskId)
+    if (timedOut) {
+      console.error('Task timed out before the Vercel function deadline:', taskId)
 
-      // Use logger for timeout error
+      // Stop only this task's sandbox. Do not use killSandbox's fallback behavior,
+      // which can target an unrelated concurrently running task.
+      const activeSandbox = getSandbox(taskId)
+      if (activeSandbox) {
+        unregisterSandbox(taskId)
+        try {
+          await activeSandbox.stop()
+          await createTaskLogger(taskId).info('Stopped this task’s sandbox after its execution deadline')
+        } catch (stopError) {
+          console.error('Failed to stop timed-out task sandbox:', stopError)
+        }
+      }
+
       const timeoutLogger = createTaskLogger(taskId)
-      await timeoutLogger.error('Task execution timed out')
-      await timeoutLogger.updateStatus('error', 'Task execution timed out. The operation took too long to complete.')
+      await timeoutLogger.error(timeoutMessage)
+      await timeoutLogger.updateStatus('error', timeoutMessage)
     } else {
-      // Re-throw other errors to be handled by the original error handler
       throw error
     }
+  } finally {
+    if (warningTimeout) clearTimeout(warningTimeout)
+    if (taskTimeout) clearTimeout(taskTimeout)
   }
 }
 
@@ -398,6 +423,7 @@ async function processTask(
     name: string | null
     email: string | null
   } | null,
+  isTimedOut: () => boolean = () => false,
 ) {
   let sandbox: Sandbox | null = null
   const logger = createTaskLogger(taskId)
@@ -487,6 +513,18 @@ async function processTask(
       },
       logger,
     )
+
+    if (isTimedOut()) {
+      if (sandboxResult.sandbox) {
+        unregisterSandbox(taskId)
+        try {
+          await sandboxResult.sandbox.stop()
+        } catch {
+          // The timeout handler may already have stopped this sandbox.
+        }
+      }
+      return
+    }
 
     if (!sandboxResult.success) {
       if (sandboxResult.cancelled) {
@@ -614,6 +652,10 @@ async function processTask(
       agentMessageId, // agentMessageId for streaming updates
     )
 
+    if (isTimedOut()) {
+      return
+    }
+
     console.log('Agent execution completed')
 
     // Update agent session ID if provided (for Cursor agent resumption)
@@ -716,6 +758,12 @@ async function processTask(
       throw new Error(agentResult.error || 'Agent execution failed')
     }
   } catch (error) {
+    if (isTimedOut()) {
+      // The timeout handler has already recorded the error and stopped this task's sandbox.
+      unregisterSandbox(taskId)
+      return
+    }
+
     console.error('Error processing task:', error)
 
     // Try to shutdown sandbox even on error (unless keepAlive is enabled)
