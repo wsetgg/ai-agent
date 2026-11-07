@@ -72,7 +72,9 @@ export async function createSandbox(config: SandboxConfig, logger: TaskLogger): 
 
     // Use the specified timeout (maxDuration) for sandbox lifetime
     // keepAlive only controls whether we shutdown after task completion
-    const timeoutMs = config.timeout ? parseInt(config.timeout.replace(/\D/g, '')) * 60 * 1000 : 60 * 60 * 1000 // Default 1 hour
+    // Vercel Hobby sandboxes are limited to 45 minutes. Keep the sandbox within that limit.
+    const requestedTimeoutMinutes = config.timeout ? parseInt(config.timeout.replace(/\D/g, '')) : 45
+    const timeoutMs = Math.min(requestedTimeoutMinutes || 45, 45) * 60 * 1000
 
     // Determine ports based on project type (will be detected after cloning)
     // Default to both 3000 (Next.js) and 5173 (Vite) for now
