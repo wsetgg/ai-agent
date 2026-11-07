@@ -7,6 +7,10 @@ import { connectors } from '@/lib/db/schema'
 
 type Connector = typeof connectors.$inferSelect
 
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, "'\\''")}'`
+}
+
 // Helper function to run command and log it in project directory
 async function runAndLogCommand(sandbox: Sandbox, command: string, args: string[], logger: TaskLogger) {
   const fullCommand = args.length > 0 ? `${command} ${args.join(' ')}` : command
@@ -355,7 +359,7 @@ EOF`
 
     // Build a safely quoted environment prefix for the sandbox command.
     const envPrefix = Object.entries(envVars)
-      .map(([key, value]) => `${key}='${value.replace(/'/g, "'\\\\''")}'`)
+      .map(([key, value]) => `${key}=${shellQuote(value)}`)
       .join(' ')
 
     console.log('Executing OpenCode using the run command for non-interactive mode...')
@@ -390,7 +394,10 @@ EOF`
     const fullCommand = `${envPrefix} ${opencodeCmdToUse} run${modelFlag}${sessionFlags} "${instruction}"`
 
     // Log the command we're about to execute (with redacted API keys)
-    const redactedCommand = fullCommand.replace(/API_KEY="[^"]*"/g, 'API_KEY="[REDACTED]"')
+    const redactedEnvPrefix = Object.keys(envVars)
+      .map((key) => `${key}='[REDACTED]'`)
+      .join(' ')
+    const redactedCommand = envPrefix ? fullCommand.replace(envPrefix, redactedEnvPrefix) : fullCommand
     await logger.command(redactedCommand)
     if (logger) {
       await logger.command(redactedCommand)
