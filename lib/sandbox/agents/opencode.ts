@@ -169,12 +169,13 @@ export async function executeOpenCodeInSandbox(
             name: 'NVIDIA NIM',
             env: ['NVIDIA_API_KEY'],
             package: '@opencode/ai/providers/openai-compatible',
-            settings: { baseURL: 'https://integrate.api.nvidia.com/v1' },
+            settings: { baseURL: 'https://integrate.api.nvidia.com/v1', apiKey: '{env:NVIDIA_API_KEY}' },
             models: {
               'minimaxai/minimax-m3.1-flash': {
                 name: 'MiniMax M3.1 Flash',
                 modelID: 'minimaxai/minimax-m3.1-flash',
                 limit: { context: 262144, output: 16384 },
+                capabilities: { tools: true, input: ['text'], output: ['text'] },
               },
             },
           },
@@ -283,7 +284,7 @@ EOF`
     // OpenCode supports multiple providers, we'll configure the available ones
     const authSetupCommands: string[] = []
 
-    if (process.env.OPENAI_API_KEY) {
+    if (!isNvidiaModel && process.env.OPENAI_API_KEY) {
       console.log('Configuring OpenAI provider...')
       if (logger) {
         await logger.info('Configuring OpenAI provider...')
@@ -305,7 +306,7 @@ EOF`
       }
     }
 
-    if (process.env.ANTHROPIC_API_KEY) {
+    if (!isNvidiaModel && process.env.ANTHROPIC_API_KEY) {
       console.log('Configuring Anthropic provider...')
       if (logger) {
         await logger.info('Configuring Anthropic provider...')
@@ -347,10 +348,10 @@ EOF`
     // Set up environment variables for the OpenCode execution
     const envVars: Record<string, string> = {}
 
-    if (process.env.OPENAI_API_KEY) {
+    if (!isNvidiaModel && process.env.OPENAI_API_KEY) {
       envVars.OPENAI_API_KEY = process.env.OPENAI_API_KEY
     }
-    if (process.env.ANTHROPIC_API_KEY) {
+    if (!isNvidiaModel && process.env.ANTHROPIC_API_KEY) {
       envVars.ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
     }
     if (isNvidiaModel && nvidiaApiKey) {
