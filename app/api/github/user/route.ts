@@ -17,7 +17,19 @@ export async function GET(req: NextRequest) {
     })
 
     if (!response.ok) {
-      throw new Error(`GitHub API error: ${response.status}`)
+      const status = response.status === 401 ? 401 : response.status === 403 ? 403 : 502
+      return NextResponse.json(
+        {
+          error:
+            status === 401
+              ? 'GitHub authorization has expired. Reconnect your GitHub account to continue.'
+              : status === 403
+                ? 'GitHub denied access. Reconnect your account or check its permissions.'
+                : 'Unable to verify GitHub authorization.',
+          reconnectRequired: status === 401 || status === 403,
+        },
+        { status },
+      )
     }
 
     const user = await response.json()
