@@ -463,6 +463,10 @@ async function processTask(
     // Wait for AI-generated branch name (with timeout)
     const aiBranchName = await waitForBranchName(taskId, 10000)
 
+    if (isTimedOut()) {
+      return
+    }
+
     // Check if task was stopped during branch name generation
     if (await isTaskStopped(taskId)) {
       await logger.info('Task was stopped during branch name generation')
@@ -481,6 +485,10 @@ async function processTask(
     // Detect the appropriate port for the project
     const port = await detectPortFromRepo(repoUrl, githubToken)
     console.log(`Detected port ${port} for project`)
+
+    if (isTimedOut()) {
+      return
+    }
 
     // Create sandbox with progress callback and 5-minute timeout
     const sandboxResult = await createSandbox(
@@ -625,6 +633,10 @@ async function processTask(
     } catch (mcpError) {
       console.error('Failed to fetch MCP servers:', mcpError)
       await logger.info('Warning: Could not fetch MCP servers, continuing without them')
+    }
+
+    if (isTimedOut()) {
+      return
     }
 
     // Sanitize prompt to prevent CLI option parsing issues
