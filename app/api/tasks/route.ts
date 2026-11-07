@@ -81,6 +81,22 @@ export async function POST(request: NextRequest) {
       logs: [],
     })
 
+    // Validate GitHub authorization before creating a task. An expired token
+    // otherwise creates a task that cannot inspect or push to the selected repo.
+    const userApiKeys = await getUserApiKeys()
+    const userGithubToken = await getUserGitHubToken()
+    const githubUser = await getGitHubUser()
+
+    if (!userGithubToken || !githubUser) {
+      return NextResponse.json(
+        {
+          error: 'Your GitHub authorization is missing or expired. Reconnect GitHub, then try again.',
+          reconnectRequired: true,
+        },
+        { status: 401 },
+      )
+    }
+
     // Insert the task into the database - ensure id is definitely present
     const [newTask] = await db
       .insert(tasks)
@@ -210,10 +226,6 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // Get user's API keys, GitHub token, and GitHub user info BEFORE entering after() block (where session is not accessible)
-    const userApiKeys = await getUserApiKeys()
-    const userGithubToken = await getUserGitHubToken()
-    const githubUser = await getGitHubUser()
     // Get max sandbox duration for this user (user-specific > global > env var)
     const maxSandboxDuration = await getMaxSandboxDuration(session.user.id)
 
