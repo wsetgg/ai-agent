@@ -378,29 +378,33 @@ export async function executeClaudeInSandbox(
       },
     })
 
+    let capturedError = ''
     const captureStderr = new Writable({
       write(chunk, _encoding, callback) {
-        // Capture stderr for error logging
+        capturedError += chunk.toString()
         callback()
       },
     })
 
-    // Execute Claude CLI with streaming
-    await sandbox.runCommand({
+    // Run Claude as a foreground command. Detached commands return a live handle
+    // and require a separate log-stream connection; that connection currently
+    // fails for this workload before Claude can start. Foreground execution still
+    // streams stdout/stderr through the Writable callbacks and resolves on exit.
+    const commandResult = await sandbox.runCommand({
       cmd: 'sh',
       args: ['-c', fullCommand],
       sudo: false,
-      detached: true,
       cwd: PROJECT_DIR,
       stdout: captureStdout,
       stderr: captureStderr,
     })
 
-    await logger.info('Claude command started with output capture, monitoring for completion...')
+    isCompleted = true
 
-    // Wait for completion - let sandbox timeout handle the hard limit
-    while (!isCompleted) {
-      await new Promise((resolve) => setTimeout(resolve, 1000)) // Wait 1 second
+    if (commandResult.exitCode !== 0) {
+      const detail = capturedError.trim() || `Claude CLI exited with code ${commandResult.exitCode}`
+      await logger.error(redactSensitiveInfo(detail))
+      throw new Error(detail)
     }
 
     await logger.info('Claude completed successfully')
