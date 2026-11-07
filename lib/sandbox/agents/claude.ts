@@ -1,5 +1,4 @@
 import { Sandbox } from '@vercel/sandbox'
-import { Writable } from 'stream'
 import { runCommandInSandbox, runInProject, PROJECT_DIR } from '../commands'
 import { AgentExecutionResult } from '../types'
 import { redactSensitiveInfo } from '@/lib/utils/logging'
@@ -276,135 +275,79 @@ export async function executeClaudeInSandbox(
     const redactedCommand = fullCommand.replace(anthropicApiKey, '[REDACTED]')
     await logger.command(redactedCommand)
 
-    // Set up streaming output capture if we have an agent message
-    let capturedOutput = ''
-    let accumulatedContent = ''
-    let isCompleted = false
-
-    const captureStdout = new Writable({
-      write(chunk, _encoding, callback) {
-        const text = chunk.toString()
-
-        // Only accumulate raw output if not streaming to DB
-        if (!agentMessageId || !taskId) {
-          capturedOutput += text
-        }
-
-        // Parse streaming JSON if we have a message to update
-        if (agentMessageId && taskId) {
-          // Split by newlines and process each line
-          const lines = text.split('\n')
-          for (const line of lines) {
-            const trimmed = line.trim()
-            if (!trimmed || trimmed.startsWith('//')) continue
-
-            try {
-              const parsed = JSON.parse(trimmed)
-
-              // Handle assistant messages with content
-              if (parsed.type === 'assistant' && parsed.message?.content) {
-                for (const contentBlock of parsed.message.content) {
-                  // Handle text content
-                  if (contentBlock.type === 'text' && contentBlock.text) {
-                    accumulatedContent += contentBlock.text
-
-                    // Update database with accumulated content
-                    db.update(taskMessages)
-                      .set({
-                        content: accumulatedContent,
-                      })
-                      .where(eq(taskMessages.id, agentMessageId))
-                      .then(() => {})
-                      .catch((err) => console.error('Failed to update message:', err))
-                  }
-                  // Handle tool use
-                  else if (contentBlock.type === 'tool_use') {
-                    let statusMsg = ''
-                    const toolName = contentBlock.name
-                    const input = contentBlock.input || {}
-
-                    if (toolName === 'Write' || toolName === 'Edit') {
-                      const path = input.path || input.file_path || input.filepath || 'file'
-                      statusMsg = `Editing ${path}`
-                    } else if (toolName === 'Read') {
-                      const path = input.path || input.file_path || input.filepath || 'file'
-                      statusMsg = `Reading ${path}`
-                    } else if (toolName === 'Glob') {
-                      const pattern = input.pattern || input.glob_pattern || input.glob || '*'
-                      statusMsg = `Searching files: ${pattern}`
-                    } else if (toolName === 'Bash') {
-                      const command = input.command || input.cmd || input.script || 'command'
-                      // Truncate long commands
-                      const displayCmd = command.length > 50 ? command.substring(0, 50) + '...' : command
-                      statusMsg = `Running: ${displayCmd}`
-                    } else if (toolName === 'Grep') {
-                      const pattern = input.pattern || input.regex || input.search || 'pattern'
-                      statusMsg = `Grep: ${pattern}`
-                    } else {
-                      // Skip logging generic tool uses to reduce noise
-                      statusMsg = ''
-                    }
-
-                    if (statusMsg) {
-                      accumulatedContent += `\n\n${statusMsg}\n\n`
-
-                      // Update database
-                      db.update(taskMessages)
-                        .set({
-                          content: accumulatedContent,
-                        })
-                        .where(eq(taskMessages.id, agentMessageId))
-                        .then(() => {})
-                        .catch((err) => console.error('Failed to update message:', err))
-                    }
-                  }
-                }
-              }
-
-              // Extract session ID and mark as completed from result chunks
-              else if (parsed.type === 'result') {
-                if (parsed.session_id) {
-                  extractedSessionId = parsed.session_id
-                }
-                isCompleted = true
-              }
-            } catch {
-              // Not JSON, ignore
-            }
-          }
-        }
-
-        callback()
-      },
-    })
-
-    let capturedError = ''
-    const captureStderr = new Writable({
-      write(chunk, _encoding, callback) {
-        capturedError += chunk.toString()
-        callback()
-      },
-    })
-
-    // Run Claude as a foreground command. Detached commands return a live handle
-    // and require a separate log-stream connection; that connection currently
-    // fails for this workload before Claude can start. Foreground execution still
-    // streams stdout/stderr through the Writable callbacks and resolves on exit.
+    // Run Claude in the foreground without attaching Writable streams to the
+    // Sandbox SDK. The SDK's attached log-stream endpoint has returned an empty
+    // body in production ("Expected a stream of logs"), which rejects the task.
+    // Read the completed command output through the supported stdout/stderr accessors.
     const commandResult = await sandbox.runCommand({
       cmd: 'sh',
       args: ['-c', fullCommand],
       sudo: false,
       cwd: PROJECT_DIR,
-      stdout: captureStdout,
-      stderr: captureStderr,
     })
 
-    isCompleted = true
+    let capturedOutput = ''
+    let capturedError = ''
+    try {
+      capturedOutput = typeof commandResult.stdout === 'function'
+        ? await commandResult.stdout()
+        : ''
+    } catch (readError) {
+      await logger.info('Claude stdout could not be retrieved from the sandbox result')
+    }
+    try {
+      capturedError = typeof commandResult.stderr === 'function'
+        ? await commandResult.stderr()
+        : ''
+    } catch {
+      // Some sandbox responses do not expose stderr after command completion.
+    }
 
     if (commandResult.exitCode !== 0) {
-      const detail = capturedError.trim() || `Claude CLI exited with code ${commandResult.exitCode}`
+      const detail = capturedError.trim() || capturedOutput.trim() || `Claude CLI exited with code ${commandResult.exitCode}`
       await logger.error(redactSensitiveInfo(detail))
       throw new Error(detail)
+    }
+
+    // Persist Claude's completed stream-json response once the command exits.
+    // Parsing the full output avoids relying on the broken live log-stream endpoint.
+    if (agentMessageId && taskId) {
+      for (const line of capturedOutput.split('\\n')) {
+        const trimmed = line.trim()
+        if (!trimmed) continue
+        try {
+          const parsed = JSON.parse(trimmed)
+          if (parsed.type === 'assistant' && parsed.message?.content) {
+            for (const contentBlock of parsed.message.content) {
+              if (contentBlock.type === 'text' && contentBlock.text) {
+                accumulatedContent += contentBlock.text
+              } else if (contentBlock.type === 'tool_use') {
+                const input = contentBlock.input || {}
+                let statusMsg = ''
+                if (contentBlock.name === 'Write' || contentBlock.name === 'Edit' || contentBlock.name === 'Read') {
+                  statusMsg = `${contentBlock.name === 'Read' ? 'Reading' : 'Editing'} ${input.path || input.file_path || 'file'}`
+                } else if (contentBlock.name === 'Glob') {
+                  statusMsg = `Searching files: ${input.pattern || '*'}`
+                } else if (contentBlock.name === 'Bash') {
+                  const command = input.command || 'command'
+                  statusMsg = `Running: ${command.length > 50 ? command.substring(0, 50) + '...' : command}`
+                } else if (contentBlock.name === 'Grep') {
+                  statusMsg = `Grep: ${input.pattern || 'pattern'}`
+                }
+                if (statusMsg) accumulatedContent += `\\n\\n${statusMsg}\\n\\n`
+              }
+            }
+          } else if (parsed.type === 'result') {
+            if (parsed.session_id) extractedSessionId = parsed.session_id
+          }
+        } catch {
+          // Ignore non-JSON lines emitted by the CLI.
+        }
+      }
+
+      await db.update(taskMessages)
+        .set({ content: accumulatedContent || capturedOutput.trim() })
+        .where(eq(taskMessages.id, agentMessageId))
     }
 
     await logger.info('Claude completed successfully')
