@@ -109,10 +109,12 @@ export class TaskLogger {
       const updates: {
         status: 'pending' | 'processing' | 'completed' | 'error'
         updatedAt: Date
+        error: string | null
         logs?: LogEntry[]
       } = {
         status,
         updatedAt: new Date(),
+        error: status === 'error' ? message || 'Task failed' : null,
       }
 
       if (message) {
