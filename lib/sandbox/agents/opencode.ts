@@ -11,7 +11,7 @@ type Connector = typeof connectors.$inferSelect
 function createOpenCodeOutputStream(
   logger: TaskLogger,
   type: 'info' | 'error',
-  onOutput: () => void,
+  onOutput: (chunk: string) => void,
 ): Writable {
   let buffered = ''
   let logQueue = Promise.resolve()
@@ -31,7 +31,9 @@ function createOpenCodeOutputStream(
 
   return new Writable({
     write(chunk: Buffer | string, _encoding: BufferEncoding, callback: (error?: Error | null) => void) {
-      buffered += chunk.toString()
+      const text = chunk.toString()
+      onOutput(text)
+      buffered += text
       const lines = buffered.split(/\r?\n/)
       buffered = lines.pop() || ''
       lines.forEach(enqueueLine)
@@ -453,11 +455,15 @@ EOF`
 
     let stdoutStreamed = false
     let stderrStreamed = false
-    const stdoutStream = createOpenCodeOutputStream(logger, 'info', () => {
+    let streamedStdoutOutput = ''
+    let streamedStderrOutput = ''
+    const stdoutStream = createOpenCodeOutputStream(logger, 'info', (chunk) => {
       stdoutStreamed = true
+      streamedStdoutOutput += chunk
     })
-    const stderrStream = createOpenCodeOutputStream(logger, 'error', () => {
+    const stderrStream = createOpenCodeOutputStream(logger, 'error', (chunk) => {
       stderrStreamed = true
+      streamedStderrOutput += chunk
     })
 
     const executeResult = await sandbox.runCommand({
@@ -469,8 +475,10 @@ EOF`
       stderr: stderrStream,
     })
 
-    const stdout = await executeResult.stdout()
-    const stderr = await executeResult.stderr()
+    const capturedStdout = await executeResult.stdout()
+    const capturedStderr = await executeResult.stderr()
+    const stdout = capturedStdout || streamedStdoutOutput
+    const stderr = capturedStderr || streamedStderrOutput
 
     // Keep a fallback in case the Sandbox SDK returns captured output without
     // having written it to the supplied streams.
