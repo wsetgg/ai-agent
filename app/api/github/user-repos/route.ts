@@ -14,12 +14,6 @@ interface GitHubRepo {
   }
 }
 
-interface GitHubSearchResult {
-  total_count: number
-  incomplete_results: boolean
-  items: GitHubRepo[]
-}
-
 export async function GET(request: NextRequest) {
   try {
     const token = await getUserGitHubToken(request)
