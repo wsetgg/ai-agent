@@ -248,7 +248,17 @@ export async function executeClaudeInSandbox(
     }
 
     // Build command with stream-json output format for streaming
-    let fullCommand = `${envPrefix} claude -p --model ${shellQuote(modelToUse)} --dangerously-skip-permissions --output-format stream-json --verbose`
+    // Bound API spend and agentic loops for every task. The budget is a
+    // Claude Code client-side estimate (not a hard billing guarantee); keep it
+    // conservative and configurable without requiring a code change.
+    const configuredBudget = Number(process.env.CLAUDE_MAX_BUDGET_USD || '0.10')
+    const maxBudgetUsd = Number.isFinite(configuredBudget) && configuredBudget > 0
+      ? Math.min(configuredBudget, 1)
+      : 0.10
+    const maxTurns = 5
+    await logger.info(`Claude cost guard enabled: max $ ${maxBudgetUsd.toFixed(2)} estimated spend, ${maxTurns} turns`)
+
+    let fullCommand = `${envPrefix} claude -p --max-turns ${maxTurns} --max-budget-usd ${maxBudgetUsd.toFixed(2)} --model ${shellQuote(modelToUse)} --dangerously-skip-permissions --output-format stream-json --verbose`
 
     // Add --resume flag for follow-up messages in kept-alive sandboxes
     if (isResumed) {
@@ -359,9 +369,15 @@ export async function executeClaudeInSandbox(
       const responseContent = accumulatedContent.trim() || finalResult.trim()
       await db.update(taskMessages)
         .set({
-          content: responseContent || 'Claude finished, but no response text was captured. Please check the task logs.',
+          content: responseContent || 'Claude finished without returning readable response text. This task is marked as failed so it can be retried safely.',
         })
         .where(eq(taskMessages.id, agentMessageId))
+
+      if (!responseContent) {
+        throw new Error('Claude exited without readable response text; refusing to mark the task successful.')
+      }
+    } else if (!capturedOutput.trim()) {
+      throw new Error('Claude exited without producing output.')
     }
     await logger.info('Claude completed successfully')
 
