@@ -120,6 +120,7 @@ const AGENT_MODELS = {
     { value: 'claude-sonnet-5-5', label: 'Sonnet 5.5' },
     { value: 'claude-opus-5-5', label: 'Opus 5.5' },
     { value: 'claude-fable-5-1', label: 'Fable 5.1' },
+    { value: 'nvidia/minimaxai/minimax-m3.1-flash', label: 'MiniMax M3.1 Flash (NVIDIA NIM · Free)' },
   ],
 } as const
 
@@ -376,6 +377,7 @@ export function TaskForm({
             cursor: 'Cursor',
             gemini: 'Gemini',
             aigateway: 'AI Gateway',
+            nvidia: 'NVIDIA NIM',
           }
           const providerName = providerNames[data.provider] || data.provider
 
