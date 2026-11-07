@@ -66,7 +66,6 @@ const CODING_AGENTS = [
 // Model options for each agent
 const AGENT_MODELS = {
   claude: [
-    { value: 'reflection/beam-free', label: 'Beam 1.0 (Free)' },
     { value: 'claude-haiku-5-5', label: 'Haiku 5.5' },
     { value: 'claude-sonnet-5-5', label: 'Sonnet 5.5' },
     { value: 'claude-opus-5-5', label: 'Opus 5.5' },
@@ -79,7 +78,7 @@ const AGENT_MODELS = {
 
 // Default models for each agent
 const DEFAULT_MODELS = {
-  claude: 'reflection/beam-free',
+  claude: 'claude-haiku-5-5',
   codex: 'openai/gpt-5.1',
   copilot: 'claude-sonnet-4.5',
   cursor: 'auto',
