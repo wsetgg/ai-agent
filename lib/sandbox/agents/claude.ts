@@ -303,14 +303,15 @@ export async function executeClaudeInSandbox(
     let capturedOutput = ''
     let capturedError = ''
     try {
-      const outputBuffer = await sandbox.readFileToBuffer({ path: outputPath })
-      capturedOutput = outputBuffer?.toString('utf-8') || ''
+      const outputRead = await sandbox.runCommand('cat', [outputPath])
+      if (outputRead.exitCode === 0) capturedOutput = await outputRead.stdout()
+      else await logger.error('Claude output file could not be read (exit code ' + outputRead.exitCode + ')')
     } catch (readError) {
       await logger.error('Unable to read Claude output file: ' + (readError instanceof Error ? readError.message : 'unknown error'))
     }
     try {
-      const errorBuffer = await sandbox.readFileToBuffer({ path: errorPath })
-      capturedError = errorBuffer?.toString('utf-8') || ''
+      const errorRead = await sandbox.runCommand('cat', [errorPath])
+      if (errorRead.exitCode === 0) capturedError = await errorRead.stdout()
     } catch {
       // An empty stderr file may not be present on some sandbox images.
     }
