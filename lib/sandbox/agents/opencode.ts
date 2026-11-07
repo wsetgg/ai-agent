@@ -182,13 +182,25 @@ export async function executeOpenCodeInSandbox(
         },
       }
       const configJson = JSON.stringify(nvidiaConfig, null, 2)
-      const configCommand = `mkdir -p "$HOME/.config/opencode" && cat > "$HOME/.config/opencode/opencode.json" <<'NVIDIA_CONFIG_EOF'\n${configJson}\nNVIDIA_CONFIG_EOF`
-      const configResult = await runCommandInSandbox(sandbox, 'sh', ['-c', configCommand])
-      if (!configResult.success) {
-        const errorMsg = 'Failed to configure NVIDIA NIM for OpenCode: ' + (configResult.error || 'unknown error')
+
+      // Validate the generated JSON before writing it. Use the Sandbox file API
+      // rather than passing a heredoc through runCommand, which can fail while
+      // the command transport parses the response.
+      JSON.parse(configJson)
+      try {
+        await sandbox.writeFiles([
+          {
+            path: '.config/opencode/opencode.json',
+            content: Buffer.from(configJson, 'utf8'),
+          },
+        ])
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : 'unknown error'
+        const errorMsg = 'Failed to write NVIDIA NIM configuration for OpenCode: ' + detail
         await logger.error(errorMsg)
         return { success: false, error: errorMsg, cliName: 'opencode', changesDetected: false }
       }
+
       await logger.info('NVIDIA NIM provider configured for MiniMax M3.1 Flash')
     }
 
