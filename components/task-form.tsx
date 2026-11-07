@@ -59,14 +59,8 @@ interface TaskFormProps {
 }
 
 const CODING_AGENTS = [
-  { value: 'multi-agent', label: 'Compare', icon: Users, isLogo: false },
-  { value: 'divider', label: '', icon: () => null, isLogo: false, isDivider: true },
   { value: 'claude', label: 'Claude', icon: Claude, isLogo: true },
-  { value: 'codex', label: 'Codex', icon: Codex, isLogo: true },
-  { value: 'copilot', label: 'Copilot', icon: Copilot, isLogo: true },
-  { value: 'cursor', label: 'Cursor', icon: Cursor, isLogo: true },
-  { value: 'gemini', label: 'Gemini', icon: Gemini, isLogo: true },
-  { value: 'opencode', label: 'opencode', icon: OpenCode, isLogo: true },
+  { value: 'opencode', label: 'NVIDIA', icon: OpenCode, isLogo: true },
 ] as const
 
 // Model options for each agent
@@ -78,48 +72,7 @@ const AGENT_MODELS = {
     { value: 'claude-opus-5-5', label: 'Opus 5.5' },
     { value: 'claude-fable-5-1', label: 'Fable 5.1' },
   ],
-  codex: [
-    { value: 'openai/gpt-5.1', label: 'GPT-5.1' },
-    { value: 'openai/gpt-5.1-codex', label: 'GPT-5.1-Codex' },
-    { value: 'openai/gpt-5.1-codex-mini', label: 'GPT-5.1-Codex mini' },
-    { value: 'openai/gpt-5', label: 'GPT-5' },
-    { value: 'gpt-5-codex', label: 'GPT-5-Codex' },
-    { value: 'openai/gpt-5-mini', label: 'GPT-5 mini' },
-    { value: 'openai/gpt-5-nano', label: 'GPT-5 nano' },
-    { value: 'gpt-5-pro', label: 'GPT-5 pro' },
-    { value: 'openai/gpt-4.1', label: 'GPT-4.1' },
-  ],
-  copilot: [
-    { value: 'claude-sonnet-4.5', label: 'Sonnet 4.5' },
-    { value: 'claude-sonnet-4', label: 'Sonnet 4' },
-    { value: 'claude-haiku-4.5', label: 'Haiku 4.5' },
-    { value: 'gpt-5', label: 'GPT-5' },
-  ],
-  cursor: [
-    { value: 'auto', label: 'Auto' },
-    { value: 'composer-1', label: 'Composer' },
-    { value: 'sonnet-4.5', label: 'Sonnet 4.5' },
-    { value: 'sonnet-4.5-thinking', label: 'Sonnet 4.5 Thinking' },
-    { value: 'gpt-5', label: 'GPT-5' },
-    { value: 'gpt-5-codex', label: 'GPT-5 Codex' },
-    { value: 'opus-4.5', label: 'Opus 4.5' },
-    { value: 'opus-4.1', label: 'Opus 4.1' },
-    { value: 'grok', label: 'Grok' },
-  ],
-  gemini: [
-    { value: 'gemini-3-pro-preview', label: 'Gemini 3 Pro Preview' },
-    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
-    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
-  ],
   opencode: [
-    { value: 'gpt-5', label: 'GPT-5' },
-    { value: 'gpt-5-mini', label: 'GPT-5 mini' },
-    { value: 'gpt-5-nano', label: 'GPT-5 nano' },
-    { value: 'gpt-4.1', label: 'GPT-4.1' },
-    { value: 'claude-haiku-5-5', label: 'Haiku 5.5' },
-    { value: 'claude-sonnet-5-5', label: 'Sonnet 5.5' },
-    { value: 'claude-opus-5-5', label: 'Opus 5.5' },
-    { value: 'claude-fable-5-1', label: 'Fable 5.1' },
     { value: 'nvidia/minimaxai/minimax-m3.1-flash', label: 'MiniMax M3.1 Flash (NVIDIA NIM · Free)' },
   ],
 } as const
@@ -131,7 +84,7 @@ const DEFAULT_MODELS = {
   copilot: 'claude-sonnet-4.5',
   cursor: 'auto',
   gemini: 'gemini-3-pro-preview',
-  opencode: 'gpt-5',
+  opencode: 'nvidia/minimaxai/minimax-m3.1-flash',
 } as const
 
 // API key requirements for each agent
