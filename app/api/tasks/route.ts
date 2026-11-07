@@ -716,8 +716,16 @@ async function processTask(
         commitMessage = createFallbackCommitMessage(prompt)
       }
 
+      if (isTimedOut()) {
+        return
+      }
+
       // Push changes to branch
       const pushResult = await pushChangesToBranch(sandbox!, branchName!, commitMessage, logger)
+
+      if (isTimedOut()) {
+        return
+      }
 
       // Conditionally shutdown sandbox based on keepAlive setting
       if (keepAlive) {
@@ -726,14 +734,19 @@ async function processTask(
         // Dev server is already started during sandbox creation if installDependencies was true
         // No need to start it again here
       } else {
-        // Unregister and shutdown sandbox
-        unregisterSandbox(taskId)
+        // Shutdown the sandbox before unregistering it so a task timeout can still
+        // find and stop this exact sandbox while cleanup is in progress.
         const shutdownResult = await shutdownSandbox(sandbox!)
+        unregisterSandbox(taskId)
         if (shutdownResult.success) {
           await logger.success('Sandbox shutdown completed')
         } else {
           await logger.error('Sandbox shutdown failed')
         }
+      }
+
+      if (isTimedOut()) {
+        return
       }
 
       // Check if push failed and handle accordingly
