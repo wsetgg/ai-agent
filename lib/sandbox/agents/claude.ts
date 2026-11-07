@@ -311,8 +311,9 @@ export async function executeClaudeInSandbox(
 
     // Persist Claude's completed stream-json response once the command exits.
     // Parsing the full output avoids relying on the broken live log-stream endpoint.
+    let accumulatedContent = ''
     if (agentMessageId && taskId) {
-      for (const line of capturedOutput.split('\\n')) {
+      for (const line of capturedOutput.split('\n')) {
         const trimmed = line.trim()
         if (!trimmed) continue
         try {
