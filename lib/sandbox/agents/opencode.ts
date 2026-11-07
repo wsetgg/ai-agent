@@ -1,4 +1,5 @@
 import { Sandbox } from '@vercel/sandbox'
+import { Writable } from 'stream'
 import { runCommandInSandbox, runInProject, PROJECT_DIR } from '../commands'
 import { AgentExecutionResult } from '../types'
 import { redactSensitiveInfo } from '@/lib/utils/logging'
@@ -6,6 +7,45 @@ import { TaskLogger } from '@/lib/utils/task-logger'
 import { connectors } from '@/lib/db/schema'
 
 type Connector = typeof connectors.$inferSelect
+
+function createOpenCodeOutputStream(
+  logger: TaskLogger,
+  type: 'info' | 'error',
+  onOutput: () => void,
+): Writable {
+  let buffered = ''
+  let logQueue = Promise.resolve()
+
+  const enqueueLine = (line: string) => {
+    const trimmed = line.trim()
+    if (!trimmed) return
+
+    onOutput()
+    const message = redactSensitiveInfo(trimmed)
+    logQueue = logQueue
+      .then(() => (type === 'error' ? logger.error(`[OpenCode stderr] ${message}`) : logger.info(`[OpenCode stdout] ${message}`)))
+      .catch(() => {
+        // Logging must not interrupt the running agent process.
+      })
+  }
+
+  return new Writable({
+    write(chunk: Buffer | string, _encoding: BufferEncoding, callback: (error?: Error | null) => void) {
+      buffered += chunk.toString()
+      const lines = buffered.split(/\r?\n/)
+      buffered = lines.pop() || ''
+      lines.forEach(enqueueLine)
+      callback()
+    },
+    final(callback: (error?: Error | null) => void) {
+      if (buffered.trim()) enqueueLine(buffered)
+      logQueue.then(
+        () => callback(),
+        () => callback(),
+      )
+    },
+  })
+}
 
 function shellQuote(value: string): string {
   return `'${value.replace(/'/g, "'\\''")}'`
@@ -411,20 +451,33 @@ EOF`
     const redactedCommand = `${redactedEnvPrefix ? redactedEnvPrefix + ' ' : ''}${opencodeCmdToUse} ${commandArgs.map((arg) => JSON.stringify(arg)).join(' ')}`
     await logger.command(redactSensitiveInfo(redactedCommand))
 
+    let stdoutStreamed = false
+    let stderrStreamed = false
+    const stdoutStream = createOpenCodeOutputStream(logger, 'info', () => {
+      stdoutStreamed = true
+    })
+    const stderrStream = createOpenCodeOutputStream(logger, 'error', () => {
+      stderrStreamed = true
+    })
+
     const executeResult = await sandbox.runCommand({
       cmd: opencodeCmdToUse,
       args: commandArgs,
       cwd: PROJECT_DIR,
       env: envVars,
+      stdout: stdoutStream,
+      stderr: stderrStream,
     })
 
     const stdout = await executeResult.stdout()
     const stderr = await executeResult.stderr()
 
-    if (stdout.trim()) {
+    // Keep a fallback in case the Sandbox SDK returns captured output without
+    // having written it to the supplied streams.
+    if (stdout.trim() && !stdoutStreamed) {
       await logger.info(redactSensitiveInfo(stdout.trim()))
     }
-    if (stderr.trim()) {
+    if (stderr.trim() && !stderrStreamed) {
       await logger.error(redactSensitiveInfo(stderr.trim()))
     }
     if (executeResult.exitCode !== 0) {
