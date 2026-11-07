@@ -8,6 +8,7 @@ export function validateEnvironmentVariables(
     ANTHROPIC_API_KEY?: string
     AI_GATEWAY_API_KEY?: string
   },
+  selectedModel?: string,
 ) {
   const errors: string[] = []
 
@@ -29,15 +30,20 @@ export function validateEnvironmentVariables(
   }
 
   if (selectedAgent === 'opencode') {
-    // OpenCode can use either AI Gateway (for GPT models) or Anthropic (for Claude models)
-    // We require at least one to be present
-    const hasAiGateway = apiKeys?.AI_GATEWAY_API_KEY || process.env.AI_GATEWAY_API_KEY
-    const hasAnthropic = apiKeys?.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY
+    if (selectedModel?.startsWith('nvidia/')) {
+      if (!process.env.NVIDIA_API_KEY) {
+        errors.push('NVIDIA_API_KEY is required for NVIDIA NIM models. Add it to your Vercel environment variables.')
+      }
+    } else {
+      // OpenCode can use either AI Gateway (for GPT models) or Anthropic (for Claude models).
+      const hasAiGateway = apiKeys?.AI_GATEWAY_API_KEY || process.env.AI_GATEWAY_API_KEY
+      const hasAnthropic = apiKeys?.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY
 
-    if (!hasAiGateway && !hasAnthropic) {
-      errors.push(
-        'Either AI_GATEWAY_API_KEY or ANTHROPIC_API_KEY is required for OpenCode CLI. Please add at least one API key in your profile.',
-      )
+      if (!hasAiGateway && !hasAnthropic) {
+        errors.push(
+          'Either AI_GATEWAY_API_KEY or ANTHROPIC_API_KEY is required for OpenCode CLI. Please add at least one API key in your profile.',
+        )
+      }
     }
   }
 
