@@ -275,13 +275,17 @@ export async function executeClaudeInSandbox(
     const redactedCommand = fullCommand.replace(anthropicApiKey, '[REDACTED]')
     await logger.command(redactedCommand)
 
-    // Run Claude in the foreground without attaching Writable streams to the
-    // Sandbox SDK. The SDK's attached log-stream endpoint has returned an empty
-    // body in production ("Expected a stream of logs"), which rejects the task.
-    // Read the completed command output through the supported stdout/stderr accessors.
+    // Capture output to files inside the sandbox. The SDK stdout() accessor has
+    // intermittently returned an unavailable stream in production despite a zero
+    // exit code. File capture prevents losing the completed Claude response.
+    const captureId = agentMessageId || generateId()
+    const outputPath = PROJECT_DIR + '/.claude-output-' + captureId + '.jsonl'
+    const errorPath = PROJECT_DIR + '/.claude-error-' + captureId + '.log'
+    const commandWithOutputFiles = fullCommand + ' > ' + shellQuote(outputPath) + ' 2> ' + shellQuote(errorPath)
+
     const commandResult = await sandbox.runCommand({
       cmd: 'sh',
-      args: ['-c', fullCommand],
+      args: ['-c', commandWithOutputFiles],
       sudo: false,
       cwd: PROJECT_DIR,
     })
@@ -289,29 +293,34 @@ export async function executeClaudeInSandbox(
     let capturedOutput = ''
     let capturedError = ''
     try {
-      capturedOutput = typeof commandResult.stdout === 'function'
-        ? await commandResult.stdout()
-        : ''
+      const outputBuffer = await sandbox.readFileToBuffer({ path: outputPath })
+      capturedOutput = outputBuffer?.toString('utf-8') || ''
     } catch (readError) {
-      await logger.info('Claude stdout could not be retrieved from the sandbox result')
+      await logger.error('Unable to read Claude output file: ' + (readError instanceof Error ? readError.message : 'unknown error'))
     }
     try {
-      capturedError = typeof commandResult.stderr === 'function'
-        ? await commandResult.stderr()
-        : ''
+      const errorBuffer = await sandbox.readFileToBuffer({ path: errorPath })
+      capturedError = errorBuffer?.toString('utf-8') || ''
     } catch {
-      // Some sandbox responses do not expose stderr after command completion.
+      // An empty stderr file may not be present on some sandbox images.
     }
 
+    // Clean up captured output so it cannot be committed with the user's changes.
+    await sandbox.runCommand({
+      cmd: 'rm',
+      args: ['-f', outputPath, errorPath],
+      cwd: PROJECT_DIR,
+    })
+
     if (commandResult.exitCode !== 0) {
-      const detail = capturedError.trim() || capturedOutput.trim() || `Claude CLI exited with code ${commandResult.exitCode}`
+      const detail = capturedError.trim() || capturedOutput.trim() || 'Claude CLI exited with code ' + commandResult.exitCode
       await logger.error(redactSensitiveInfo(detail))
       throw new Error(detail)
     }
 
-    // Persist Claude's completed stream-json response once the command exits.
-    // Parsing the full output avoids relying on the broken live log-stream endpoint.
+    // Parse Claude's stream-json output, including the final result event.
     let accumulatedContent = ''
+    let finalResult = ''
     if (agentMessageId && taskId) {
       for (const line of capturedOutput.split('\n')) {
         const trimmed = line.trim()
@@ -326,31 +335,34 @@ export async function executeClaudeInSandbox(
                 const input = contentBlock.input || {}
                 let statusMsg = ''
                 if (contentBlock.name === 'Write' || contentBlock.name === 'Edit' || contentBlock.name === 'Read') {
-                  statusMsg = `${contentBlock.name === 'Read' ? 'Reading' : 'Editing'} ${input.path || input.file_path || 'file'}`
+                  statusMsg = (contentBlock.name === 'Read' ? 'Reading' : 'Editing') + ' ' + (input.path || input.file_path || 'file')
                 } else if (contentBlock.name === 'Glob') {
-                  statusMsg = `Searching files: ${input.pattern || '*'}`
+                  statusMsg = 'Searching files: ' + (input.pattern || '*')
                 } else if (contentBlock.name === 'Bash') {
                   const command = input.command || 'command'
-                  statusMsg = `Running: ${command.length > 50 ? command.substring(0, 50) + '...' : command}`
+                  statusMsg = 'Running: ' + (command.length > 50 ? command.substring(0, 50) + '...' : command)
                 } else if (contentBlock.name === 'Grep') {
-                  statusMsg = `Grep: ${input.pattern || 'pattern'}`
+                  statusMsg = 'Grep: ' + (input.pattern || 'pattern')
                 }
-                if (statusMsg) accumulatedContent += `\\n\\n${statusMsg}\\n\\n`
+                if (statusMsg) accumulatedContent += '\n\n' + statusMsg + '\n\n'
               }
             }
           } else if (parsed.type === 'result') {
             if (parsed.session_id) extractedSessionId = parsed.session_id
+            if (typeof parsed.result === 'string') finalResult = parsed.result
           }
         } catch {
           // Ignore non-JSON lines emitted by the CLI.
         }
       }
 
+      const responseContent = accumulatedContent.trim() || finalResult.trim()
       await db.update(taskMessages)
-        .set({ content: accumulatedContent || capturedOutput.trim() })
+        .set({
+          content: responseContent || 'Claude finished, but no response text was captured. Please check the task logs.',
+        })
         .where(eq(taskMessages.id, agentMessageId))
     }
-
     await logger.info('Claude completed successfully')
 
     // Check if any files were modified
