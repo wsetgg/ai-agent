@@ -56,8 +56,17 @@ export async function executeOpenCodeInSandbox(
     // Executing OpenCode with instruction
     await logger.info('Starting OpenCode agent execution...')
 
-    // Check if we have required environment variables for OpenCode
-    if (!process.env.OPENAI_API_KEY && !process.env.ANTHROPIC_API_KEY) {
+    // NVIDIA NIM is a separate OpenAI-compatible provider for OpenCode.
+    const isNvidiaModel = selectedModel?.startsWith('nvidia/') || false
+    const nvidiaApiKey = process.env.NVIDIA_API_KEY
+
+    if (isNvidiaModel && !nvidiaApiKey) {
+      const errorMsg = 'NVIDIA_API_KEY is required for the selected NVIDIA NIM model.'
+      await logger.error(errorMsg)
+      return { success: false, error: errorMsg, cliName: 'opencode', changesDetected: false }
+    }
+
+    if (!isNvidiaModel && !process.env.OPENAI_API_KEY && !process.env.ANTHROPIC_API_KEY) {
       const errorMsg = 'OpenAI API key or Anthropic API key is required for OpenCode agent'
       await logger.error(errorMsg)
       return {
@@ -144,6 +153,38 @@ export async function executeOpenCodeInSandbox(
     console.log('OpenCode CLI verified successfully')
     if (logger) {
       await logger.success('OpenCode CLI verified successfully')
+    }
+
+    // Configure NVIDIA NIM as an OpenAI-compatible custom provider when selected.
+    // The API key stays in the server environment and is passed only to the sandbox process.
+    if (isNvidiaModel && nvidiaApiKey) {
+      const nvidiaConfig = {
+        $schema: 'https://opencode.ai/config.json',
+        providers: {
+          nvidia: {
+            name: 'NVIDIA NIM',
+            env: ['NVIDIA_API_KEY'],
+            package: '@opencode/ai/providers/openai-compatible',
+            settings: { baseURL: 'https://integrate.api.nvidia.com/v1' },
+            models: {
+              'minimaxai/minimax-m3.1-flash': {
+                name: 'MiniMax M3.1 Flash',
+                modelID: 'minimaxai/minimax-m3.1-flash',
+                limit: { context: 262144, output: 16384 },
+              },
+            },
+          },
+        },
+      }
+      const configJson = JSON.stringify(nvidiaConfig, null, 2)
+      const configCommand = `mkdir -p "$HOME/.config/opencode" && cat > "$HOME/.config/opencode/opencode.json" <<'NVIDIA_CONFIG_EOF'\n${configJson}\nNVIDIA_CONFIG_EOF`
+      const configResult = await runCommandInSandbox(sandbox, 'sh', ['-c', configCommand])
+      if (!configResult.success) {
+        const errorMsg = 'Failed to configure NVIDIA NIM for OpenCode: ' + (configResult.error || 'unknown error')
+        await logger.error(errorMsg)
+        return { success: false, error: errorMsg, cliName: 'opencode', changesDetected: false }
+      }
+      await logger.info('NVIDIA NIM provider configured for MiniMax M3.1 Flash')
     }
 
     // Configure MCP servers if provided
@@ -308,10 +349,13 @@ EOF`
     if (process.env.ANTHROPIC_API_KEY) {
       envVars.ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
     }
+    if (isNvidiaModel && nvidiaApiKey) {
+      envVars.NVIDIA_API_KEY = nvidiaApiKey
+    }
 
-    // Build environment variables string for shell command
+    // Build a safely quoted environment prefix for the sandbox command.
     const envPrefix = Object.entries(envVars)
-      .map(([key, value]) => `${key}="${value}"`)
+      .map(([key, value]) => `${key}='${value.replace(/'/g, "'\\\\''")}'`)
       .join(' ')
 
     console.log('Executing OpenCode using the run command for non-interactive mode...')
