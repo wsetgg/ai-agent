@@ -188,9 +188,16 @@ export async function executeOpenCodeInSandbox(
       // the command transport parses the response.
       JSON.parse(configJson)
       try {
+        // Sandbox file paths are rooted at /vercel/sandbox, while commands run
+        // as the ubuntu user. OpenCode loads its global config from this user's
+        // home directory, so write to the absolute documented location.
+        const configDirResult = await sandbox.runCommand('mkdir', ['-p', '/home/ubuntu/.config/opencode'])
+        if (configDirResult.exitCode !== 0) {
+          throw new Error((await configDirResult.stderr()) || 'Could not create OpenCode config directory')
+        }
         await sandbox.writeFiles([
           {
-            path: '.config/opencode/opencode.json',
+            path: '/home/ubuntu/.config/opencode/opencode.json',
             content: Buffer.from(configJson, 'utf8'),
           },
         ])
@@ -404,36 +411,40 @@ EOF`
       }
     }
 
-    const fullCommand = `${envPrefix} ${opencodeCmdToUse} run${modelFlag}${sessionFlags} "${instruction}"`
+    const commandArgs = [
+      'run',
+      ...(selectedModel ? ['--model', selectedModel] : []),
+      ...(isResumed && sessionId ? ['--session', sessionId] : []),
+      ...(isResumed && !sessionId ? ['--continue'] : []),
+      instruction,
+    ]
 
-    // Log the command we're about to execute (with redacted API keys)
+    // Run from the cloned repository and pass credentials as environment
+    // variables directly. Avoid a shell so prompts/models cannot break quoting.
     const redactedEnvPrefix = Object.keys(envVars)
       .map((key) => `${key}='[REDACTED]'`)
       .join(' ')
-    const redactedCommand = envPrefix ? fullCommand.replace(envPrefix, redactedEnvPrefix) : fullCommand
-    await logger.command(redactedCommand)
-    if (logger) {
-      await logger.command(redactedCommand)
-    }
+    const redactedCommand = `${redactedEnvPrefix ? redactedEnvPrefix + ' ' : ''}${opencodeCmdToUse} ${commandArgs.map((arg) => JSON.stringify(arg)).join(' ')}`
+    await logger.command(redactSensitiveInfo(redactedCommand))
 
-    // Execute OpenCode run command
-    const executeResult = await runCommandInSandbox(sandbox, 'sh', ['-c', fullCommand])
+    const executeResult = await sandbox.runCommand({
+      cmd: opencodeCmdToUse,
+      args: commandArgs,
+      cwd: PROJECT_DIR,
+      env: envVars,
+    })
 
-    const stdout = executeResult.output || ''
-    const stderr = executeResult.error || ''
+    const stdout = await executeResult.stdout()
+    const stderr = await executeResult.stderr()
 
-    // Log the output
-    if (stdout && stdout.trim()) {
+    if (stdout.trim()) {
       await logger.info(redactSensitiveInfo(stdout.trim()))
-      if (logger) {
-        await logger.info(redactSensitiveInfo(stdout.trim()))
-      }
     }
-    if (stderr && stderr.trim()) {
+    if (stderr.trim()) {
       await logger.error(redactSensitiveInfo(stderr.trim()))
-      if (logger) {
-        await logger.error(redactSensitiveInfo(stderr.trim()))
-      }
+    }
+    if (executeResult.exitCode !== 0) {
+      await logger.error(`OpenCode process exited with code ${executeResult.exitCode}`)
     }
 
     // OpenCode execution completed
