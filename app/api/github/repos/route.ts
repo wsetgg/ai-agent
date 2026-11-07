@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
 
     while (true) {
       const response = await fetch(
-        `https://api.github.com/user/repos?sort=name&direction=asc&per_page=${perPage}&page=${page}&visibility=all&affiliation=owner,collaborator,organization_member`,
+        `https://api.github.com/user/repos?sort=full_name&direction=asc&per_page=${perPage}&page=${page}&visibility=all&affiliation=owner,collaborator,organization_member`,
         { headers },
       )
 
@@ -98,14 +98,30 @@ export async function GET(request: NextRequest) {
     // Preserve the previous ability to browse public repositories owned by
     // someone else when the current user has no direct affiliation with them.
     const orgResponse = await fetch(`https://api.github.com/orgs/${encodeURIComponent(owner)}`, { headers })
+    if (!orgResponse.ok && orgResponse.status !== 404) {
+      const status = orgResponse.status === 401 ? 401 : orgResponse.status === 403 ? 403 : 502
+      return NextResponse.json(
+        {
+          error:
+            status === 401
+              ? 'GitHub authorization has expired. Reconnect your GitHub account to continue.'
+              : status === 403
+                ? 'GitHub denied access to this organization. Check its permissions and repository access.'
+                : 'Unable to verify this GitHub owner.',
+          reconnectRequired: status === 401 || status === 403,
+        },
+        { status },
+      )
+    }
+
     const isOrganization = orgResponse.ok
     const publicRepos: GitHubRepo[] = []
     page = 1
 
     while (true) {
       const endpoint = isOrganization
-        ? `https://api.github.com/orgs/${encodeURIComponent(owner)}/repos?sort=name&direction=asc&per_page=${perPage}&page=${page}`
-        : `https://api.github.com/users/${encodeURIComponent(owner)}/repos?sort=name&direction=asc&per_page=${perPage}&page=${page}`
+        ? `https://api.github.com/orgs/${encodeURIComponent(owner)}/repos?sort=full_name&direction=asc&per_page=${perPage}&page=${page}`
+        : `https://api.github.com/users/${encodeURIComponent(owner)}/repos?sort=full_name&direction=asc&per_page=${perPage}&page=${page}`
 
       const response = await fetch(endpoint, { headers })
 
