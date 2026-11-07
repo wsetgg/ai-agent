@@ -226,7 +226,7 @@ export async function POST(request: NextRequest) {
           newTask.id,
           validatedData.prompt,
           validatedData.repoUrl || '',
-          validatedData.maxDuration || maxSandboxDuration,
+          Math.min(validatedData.maxDuration || maxSandboxDuration, 45),
           validatedData.selectedAgent || 'claude',
           validatedData.selectedModel,
           validatedData.installDependencies || false,
