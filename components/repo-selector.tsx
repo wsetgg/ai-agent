@@ -364,8 +364,11 @@ export function RepoSelector({
       setRepos(null)
       setLoadingRepos(false)
     }
+    // Reload repositories when GitHub is reconnected, even if the selected
+    // owner did not change. Without this dependency, reconnecting only reloads
+    // the owner list and leaves the repository dropdown empty.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedOwner, setGitHubConnection, setOwners, setRepos])
+  }, [selectedOwner, githubConnection.connected, setGitHubConnection, setOwners, setRepos])
 
   // Focus filter input when dropdown opens (but not on mobile to prevent keyboard popup)
   useEffect(() => {
