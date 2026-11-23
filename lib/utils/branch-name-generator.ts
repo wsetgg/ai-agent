@@ -16,10 +16,13 @@ export async function generateBranchName(options: BranchNameOptions): Promise<st
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 32)
-  const prefix = /\b(fix|bug|error|crash|broken)\b/i.test(description) ? 'fix'
-    : /\b(docs|documentation|readme)\b/i.test(description) ? 'docs'
-    : /\b(refactor|cleanup|clean up)\b/i.test(description) ? 'chore'
-    : 'feature'
+  const prefix = /\b(fix|bug|error|crash|broken)\b/i.test(description)
+    ? 'fix'
+    : /\b(docs|documentation|readme)\b/i.test(description)
+      ? 'docs'
+      : /\b(refactor|cleanup|clean up)\b/i.test(description)
+        ? 'chore'
+        : 'feature'
   const base = normalized || 'task'
   return `${prefix}/${base}`.slice(0, 49)
 }

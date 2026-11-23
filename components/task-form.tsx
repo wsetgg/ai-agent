@@ -71,9 +71,7 @@ const AGENT_MODELS = {
     { value: 'claude-opus-5-5', label: 'Opus 5.5' },
     { value: 'claude-fable-5-1', label: 'Fable 5.1' },
   ],
-  opencode: [
-    { value: 'nvidia/minimaxai/minimax-m3.1-flash', label: 'MiniMax M3.1 Flash (NVIDIA NIM · Free)' },
-  ],
+  opencode: [{ value: 'nvidia/minimaxai/minimax-m3.1-flash', label: 'MiniMax M3.1 Flash (NVIDIA NIM · Free)' }],
 } as const
 
 // Default models for each agent
