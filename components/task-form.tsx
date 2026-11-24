@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Loader2, ArrowUp, Settings, X, Cable, Users, Globe, Sparkles } from 'lucide-react'
+import { Loader2, ArrowUp, Settings, X, Cable, Users, Globe } from 'lucide-react'
 import { Claude, Codex, Copilot, Cursor, Gemini, OpenCode } from '@/components/logos'
 import { setInstallDependencies, setMaxDuration, setKeepAlive, setEnableBrowser } from '@/lib/utils/cookies'
 import { useConnectors } from '@/components/connectors-provider'
@@ -59,32 +59,86 @@ interface TaskFormProps {
 }
 
 const CODING_AGENTS = [
+  { value: 'multi-agent', label: 'Compare', icon: Users, isLogo: false },
+  { value: 'divider', label: '', icon: () => null, isLogo: false, isDivider: true },
   { value: 'claude', label: 'Claude', icon: Claude, isLogo: true },
-  { value: 'opencode', label: 'NVIDIA', icon: OpenCode, isLogo: true },
+  { value: 'codex', label: 'Codex', icon: Codex, isLogo: true },
+  { value: 'copilot', label: 'Copilot', icon: Copilot, isLogo: true },
+  { value: 'cursor', label: 'Cursor', icon: Cursor, isLogo: true },
+  { value: 'gemini', label: 'Gemini', icon: Gemini, isLogo: true },
+  { value: 'opencode', label: 'opencode', icon: OpenCode, isLogo: true },
 ] as const
 
 // Model options for each agent
 const AGENT_MODELS = {
   claude: [
-    { value: 'claude-haiku-5-5', label: 'Haiku 5.5' },
-    { value: 'claude-sonnet-5-5', label: 'Sonnet 5.5' },
-    { value: 'claude-opus-5-5', label: 'Opus 5.5' },
-    { value: 'claude-fable-5-1', label: 'Fable 5.1' },
+    { value: 'reflection/beam-free', label: 'Beam 1.0 (Free)' },
+    { value: 'claude-sonnet-4-5', label: 'Sonnet 4.5' },
+    { value: 'anthropic/claude-opus-4.6', label: 'Opus 4.6' },
+    { value: 'claude-haiku-4-5', label: 'Haiku 4.5' },
+  ],
+  codex: [
+    { value: 'openai/gpt-5.1', label: 'GPT-5.1' },
+    { value: 'openai/gpt-5.1-codex', label: 'GPT-5.1-Codex' },
+    { value: 'openai/gpt-5.1-codex-mini', label: 'GPT-5.1-Codex mini' },
+    { value: 'openai/gpt-5', label: 'GPT-5' },
+    { value: 'gpt-5-codex', label: 'GPT-5-Codex' },
+    { value: 'openai/gpt-5-mini', label: 'GPT-5 mini' },
+    { value: 'openai/gpt-5-nano', label: 'GPT-5 nano' },
+    { value: 'gpt-5-pro', label: 'GPT-5 pro' },
+    { value: 'openai/gpt-4.1', label: 'GPT-4.1' },
+  ],
+  copilot: [
+    { value: 'claude-sonnet-4.5', label: 'Sonnet 4.5' },
+    { value: 'claude-sonnet-4', label: 'Sonnet 4' },
+    { value: 'claude-haiku-4.5', label: 'Haiku 4.5' },
+    { value: 'gpt-5', label: 'GPT-5' },
+  ],
+  cursor: [
+    { value: 'auto', label: 'Auto' },
+    { value: 'composer-1', label: 'Composer' },
+    { value: 'sonnet-4.5', label: 'Sonnet 4.5' },
+    { value: 'sonnet-4.5-thinking', label: 'Sonnet 4.5 Thinking' },
+    { value: 'gpt-5', label: 'GPT-5' },
+    { value: 'gpt-5-codex', label: 'GPT-5 Codex' },
+    { value: 'opus-4.5', label: 'Opus 4.5' },
+    { value: 'opus-4.1', label: 'Opus 4.1' },
+    { value: 'grok', label: 'Grok' },
+  ],
+  gemini: [
+    { value: 'gemini-3-pro-preview', label: 'Gemini 3 Pro Preview' },
+    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
+    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
   ],
   opencode: [
-    { value: 'nvidia/minimaxai/minimax-m3.1-flash', label: 'MiniMax M3.1 Flash (NVIDIA NIM · Free)' },
+    { value: 'gpt-5', label: 'GPT-5' },
+    { value: 'gpt-5-mini', label: 'GPT-5 mini' },
+    { value: 'gpt-5-nano', label: 'GPT-5 nano' },
+    { value: 'gpt-4.1', label: 'GPT-4.1' },
+    { value: 'claude-sonnet-4-5', label: 'Sonnet 4.5' },
+    { value: 'claude-opus-4-5', label: 'Opus 4.5' },
+    { value: 'claude-haiku-4-5', label: 'Haiku 4.5' },
   ],
 } as const
 
 // Default models for each agent
 const DEFAULT_MODELS = {
-  claude: 'claude-haiku-5-5',
+  claude: 'reflection/beam-free',
   codex: 'openai/gpt-5.1',
   copilot: 'claude-sonnet-4.5',
   cursor: 'auto',
   gemini: 'gemini-3-pro-preview',
-  opencode: 'nvidia/minimaxai/minimax-m3.1-flash',
+  opencode: 'gpt-5',
 } as const
+
+const HOME_GREETINGS = [
+  'Welcome, user!',
+  'Hello, user!',
+  'Good to see you!',
+  'Ready to build something?',
+  'What are we making today?',
+  "Let's get started!",
+]
 
 // API key requirements for each agent
 const AGENT_API_KEY_REQUIREMENTS: Record<string, Provider[]> = {
@@ -124,6 +178,7 @@ export function TaskForm({
   maxSandboxDuration = 300,
 }: TaskFormProps) {
   const [prompt, setPrompt] = useAtom(taskPromptAtom)
+  const [greeting, setGreeting] = useState(HOME_GREETINGS[0])
   const [savedAgent, setSavedAgent] = useAtom(lastSelectedAgentAtom)
   const [selectedAgent, setSelectedAgent] = useState(savedAgent || 'claude')
   const [selectedModel, setSelectedModel] = useState<string>(DEFAULT_MODELS.claude)
@@ -143,6 +198,16 @@ export function TaskForm({
 
   // Ref for the textarea to focus it programmatically
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    const greetingStorageKey = 'ai-agent-home-greeting'
+    const previousGreeting = window.sessionStorage.getItem(greetingStorageKey)
+    const availableGreetings = HOME_GREETINGS.filter((option) => option !== previousGreeting)
+    const nextGreeting = availableGreetings[Math.floor(Math.random() * availableGreetings.length)]
+
+    window.sessionStorage.setItem(greetingStorageKey, nextGreeting)
+    setGreeting(nextGreeting)
+  }, [])
 
   // Wrapper functions to update both state and cookies
   const updateInstallDependencies = (value: boolean) => {
@@ -236,9 +301,8 @@ export function TaskForm({
 
       // Load saved model for this agent or use default
       const agentModels = AGENT_MODELS[selectedAgent as keyof typeof AGENT_MODELS]
-      const migratePaidClaudeDefault =
-        selectedAgent === 'claude' && ['claude-sonnet-5-5', 'claude-sonnet-4-5'].includes(savedModel || '')
-      if (migratePaidClaudeDefault) {
+      const isPreviouslySavedPaidClaudeDefault = selectedAgent === 'claude' && savedModel === 'claude-sonnet-4-5'
+      if (isPreviouslySavedPaidClaudeDefault) {
         setSelectedModel(DEFAULT_MODELS.claude)
         setSavedModel(DEFAULT_MODELS.claude)
       } else if (savedModel && agentModels?.some((model) => model.value === savedModel)) {
@@ -329,7 +393,6 @@ export function TaskForm({
             cursor: 'Cursor',
             gemini: 'Gemini',
             aigateway: 'AI Gateway',
-            nvidia: 'NVIDIA NIM',
           }
           const providerName = providerNames[data.provider] || data.provider
 
@@ -358,53 +421,31 @@ export function TaskForm({
   }
 
   return (
-    <div className="relative z-10 mx-auto w-full max-w-3xl">
-      <div className="mb-10 text-center sm:mb-12">
-        <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-blue-200/70 bg-white/75 px-4 py-2 text-[11px] font-semibold tracking-[0.16em] text-blue-700 shadow-[0_8px_28px_-18px_rgba(37,99,235,0.48)] backdrop-blur-xl">
-          <Sparkles className="h-3.5 w-3.5" />
-          Private AI coding workspace
-        </div>
-        <h1 className="mx-auto max-w-3xl text-balance text-5xl font-semibold leading-[1.04] tracking-[-0.055em] text-slate-950 sm:text-6xl md:text-7xl">
-          Make your next big idea{' '}
-          <span className="bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 bg-clip-text text-transparent">
-            real.
-          </span>
-        </h1>
-        <p className="mx-auto mt-5 max-w-xl text-pretty text-base leading-relaxed text-slate-600 sm:text-lg">
-          Describe the change. Choose an agent. Let it build in a sandbox connected to your repository.
-        </p>
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-          {['Multiple coding agents', 'Private repositories', 'Sandboxed builds'].map((feature) => (
-            <span
-              key={feature}
-              className="rounded-full border border-blue-100 bg-white/65 px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm shadow-blue-100/50"
-            >
-              {feature}
-            </span>
-          ))}
-        </div>
+    <div className="w-full max-w-2xl">
+      <div className="text-center mb-8">
+        <h1 className="text-4xl font-bold mb-4">{greeting}</h1>
       </div>
 
       <form onSubmit={handleSubmit}>
-        <div className="home-prompt-card relative cursor-text">
+        <div className="relative border rounded-2xl shadow-sm overflow-hidden bg-muted/30 cursor-text">
           {/* Prompt Input */}
           <div className="relative bg-transparent">
             <Textarea
               ref={textareaRef}
               id="prompt"
-              placeholder="What should your coding agent build, fix, or explore?"
+              placeholder="Describe what you want the AI agent to do..."
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               onKeyDown={handleTextareaKeyDown}
               disabled={isSubmitting}
               required
               rows={4}
-              className="min-h-[150px] w-full resize-none border-0 bg-transparent p-5 text-base leading-relaxed text-slate-800 shadow-none! focus-visible:ring-0 focus-visible:ring-offset-0 sm:min-h-[170px] sm:p-6"
+              className="w-full border-0 resize-none focus-visible:ring-0 focus-visible:ring-offset-0 p-4 text-base !bg-transparent shadow-none!"
             />
           </div>
 
           {/* Agent Selection */}
-          <div className="home-prompt-controls p-3 sm:p-4">
+          <div className="p-4">
             <div className="flex items-center justify-between gap-2">
               {/* Left side: Agent, Model, and Option Chips */}
               <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -458,7 +499,7 @@ export function TaskForm({
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      {CODING_AGENTS.map((agent) => (
+                      {CODING_AGENTS.filter((agent) => agent.value !== 'multi-agent').map((agent) => (
                         <div key={agent.value}>
                           <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">{agent.label}</div>
                           {AGENT_MODELS[agent.value as keyof typeof AGENT_MODELS]?.map((model) => {
@@ -723,7 +764,7 @@ export function TaskForm({
                     type="submit"
                     disabled={isSubmitting || !prompt.trim()}
                     size="sm"
-                    className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 p-0 text-white shadow-md shadow-blue-600/25 transition-all hover:scale-105 hover:shadow-lg hover:shadow-blue-600/30 disabled:pointer-events-none disabled:opacity-40"
+                    className="rounded-full h-8 w-8 p-0"
                   >
                     {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUp className="h-4 w-4" />}
                   </Button>
