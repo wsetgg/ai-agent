@@ -429,7 +429,9 @@ export function TaskForm({
   return (
     <div className="w-full max-w-2xl">
       <div className="text-center mb-8">
-        <h1 className="text-4xl font-bold mb-4">{greeting}</h1>
+        <h1 className="mx-auto w-fit text-4xl font-bold mb-4 bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-500 bg-clip-text text-transparent">
+          {greeting}
+        </h1>
       </div>
 
       <form onSubmit={handleSubmit}>
