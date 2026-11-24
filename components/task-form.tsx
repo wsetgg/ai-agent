@@ -428,10 +428,12 @@ export function TaskForm({
 
   return (
     <div className="w-full max-w-2xl">
-      <div className="text-center mb-8">
-        <h1 className="mx-auto w-fit text-4xl font-bold mb-4 bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-500 bg-clip-text text-transparent">
-          {greeting}
-        </h1>
+      <div className="relative isolate mb-8 py-4 text-center">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute left-1/2 top-1/2 z-0 h-20 w-3/4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-r from-transparent via-blue-500/20 to-cyan-400/20 blur-2xl"
+        />
+        <h1 className="relative z-10 text-4xl font-bold text-foreground">{greeting}</h1>
       </div>
 
       <form onSubmit={handleSubmit}>
