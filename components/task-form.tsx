@@ -465,7 +465,7 @@ export function TaskForm({
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      {CODING_AGENTS.filter((agent) => agent.value !== 'multi-agent').map((agent) => (
+                      {CODING_AGENTS.map((agent) => (
                         <div key={agent.value}>
                           <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">{agent.label}</div>
                           {AGENT_MODELS[agent.value as keyof typeof AGENT_MODELS]?.map((model) => {
