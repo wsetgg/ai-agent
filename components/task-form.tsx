@@ -437,12 +437,7 @@ export function TaskForm({
       </div>
 
       <form onSubmit={handleSubmit}>
-        <div className="relative isolate">
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute -inset-x-8 -inset-y-8 z-0 rounded-[3rem] bg-[radial-gradient(ellipse_at_center,rgba(59,130,246,0.34)_0%,rgba(56,189,248,0.21)_48%,transparent_78%)] blur-2xl"
-          />
-          <div className="relative z-10 border rounded-2xl shadow-sm overflow-hidden bg-muted/30 cursor-text">
+        <div className="relative border rounded-2xl shadow-[0_1px_2px_0_rgba(0,0,0,0.05),0_0_24px_rgba(59,130,246,0.2)] overflow-hidden bg-muted/30 cursor-text">
           {/* Prompt Input */}
           <div className="relative bg-transparent">
             <Textarea
@@ -786,7 +781,6 @@ export function TaskForm({
                 </div>
               </div>
             </div>
-          </div>
           </div>
         </div>
 
