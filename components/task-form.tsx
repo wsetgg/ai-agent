@@ -431,7 +431,7 @@ export function TaskForm({
       <div className="relative isolate mb-8 py-4 text-center">
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute left-1/2 top-1/2 z-0 h-36 w-full max-w-xl -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(59,130,246,0.3)_0%,rgba(56,189,248,0.18)_42%,transparent_74%)] blur-xl"
+          className="pointer-events-none absolute left-1/2 top-1/2 z-0 h-[26rem] w-[calc(100%+4rem)] max-w-3xl -translate-x-1/2 -translate-y-[43%] rounded-[3rem] bg-[radial-gradient(ellipse_at_center,rgba(59,130,246,0.34)_0%,rgba(56,189,248,0.21)_48%,transparent_78%)] blur-2xl"
         />
         <h1 className="relative z-10 text-4xl font-bold text-foreground">{greeting}</h1>
       </div>
