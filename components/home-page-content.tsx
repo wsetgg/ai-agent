@@ -554,7 +554,7 @@ export function HomePageContent({
   }
 
   return (
-    <div className="flex-1 bg-background flex flex-col">
+    <div className="flex-1 home-page-shell flex flex-col">
       <div className="p-3">
         <SharedHeader leftActions={headerLeftActions} initialStars={initialStars} />
       </div>
