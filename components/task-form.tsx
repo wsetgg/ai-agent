@@ -56,6 +56,7 @@ interface TaskFormProps {
   initialKeepAlive?: boolean
   initialEnableBrowser?: boolean
   maxSandboxDuration?: number
+  userName?: string
 }
 
 const CODING_AGENTS = [
@@ -131,14 +132,18 @@ const DEFAULT_MODELS = {
   opencode: 'gpt-5',
 } as const
 
-const HOME_GREETINGS = [
-  'Welcome, user!',
-  'Hello, user!',
-  'Good to see you!',
-  'Ready to build something?',
-  'What are we making today?',
-  "Let's get started!",
-]
+const getHomeGreetings = (userName?: string) => {
+  const nameSuffix = userName?.trim() ? `, ${userName.trim()}` : ''
+
+  return [
+    `Welcome${nameSuffix}!`,
+    `Hello${nameSuffix}!`,
+    `Good to see you${nameSuffix}.`,
+    `Ready to build something${nameSuffix}?`,
+    `What are we making today${nameSuffix}?`,
+    `Let's get started${nameSuffix}!`,
+  ]
+}
 
 // API key requirements for each agent
 const AGENT_API_KEY_REQUIREMENTS: Record<string, Provider[]> = {
@@ -176,9 +181,10 @@ export function TaskForm({
   initialKeepAlive = false,
   initialEnableBrowser = false,
   maxSandboxDuration = 300,
+  userName,
 }: TaskFormProps) {
   const [prompt, setPrompt] = useAtom(taskPromptAtom)
-  const [greeting, setGreeting] = useState(HOME_GREETINGS[0])
+  const [greeting, setGreeting] = useState(getHomeGreetings(userName)[0])
   const [savedAgent, setSavedAgent] = useAtom(lastSelectedAgentAtom)
   const [selectedAgent, setSelectedAgent] = useState(savedAgent || 'claude')
   const [selectedModel, setSelectedModel] = useState<string>(DEFAULT_MODELS.claude)
@@ -202,12 +208,12 @@ export function TaskForm({
   useEffect(() => {
     const greetingStorageKey = 'ai-agent-home-greeting'
     const previousGreeting = window.sessionStorage.getItem(greetingStorageKey)
-    const availableGreetings = HOME_GREETINGS.filter((option) => option !== previousGreeting)
+    const availableGreetings = getHomeGreetings(userName).filter((option) => option !== previousGreeting)
     const nextGreeting = availableGreetings[Math.floor(Math.random() * availableGreetings.length)]
 
     window.sessionStorage.setItem(greetingStorageKey, nextGreeting)
     setGreeting(nextGreeting)
-  }, [])
+  }, [userName])
 
   // Wrapper functions to update both state and cookies
   const updateInstallDependencies = (value: boolean) => {
