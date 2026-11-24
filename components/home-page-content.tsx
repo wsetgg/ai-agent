@@ -24,6 +24,7 @@ import { GitHubIcon } from '@/components/icons/github-icon'
 import { getEnabledAuthProviders } from '@/lib/auth/providers'
 import { useSetAtom, useAtom, useAtomValue } from 'jotai'
 import { taskPromptAtom } from '@/lib/atoms/task'
+import { HomePageMobileFooter } from '@/components/home-page-mobile-footer'
 import { multiRepoModeAtom, selectedReposAtom } from '@/lib/atoms/multi-repo'
 import { sessionAtom } from '@/lib/atoms/session'
 import { githubConnectionAtom, githubConnectionInitializedAtom } from '@/lib/atoms/github-connection'
@@ -51,6 +52,7 @@ export function HomePageContent({
   initialEnableBrowser = false,
   maxSandboxDuration = 300,
   user = null,
+  initialStars = 1200,
 }: HomePageContentProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedOwner, setSelectedOwnerState] = useState(initialSelectedOwner)
@@ -229,10 +231,7 @@ export function HomePageContent({
         prompt: 'Work on this repository',
         repoUrl: repoUrl,
         selectedAgent: localStorage.getItem('last-selected-agent') || 'claude',
-        selectedModel:
-          savedClaudeModel === 'claude-sonnet-5-5' || savedClaudeModel === 'claude-sonnet-4-5'
-            ? 'reflection/beam-free'
-            : savedClaudeModel || 'reflection/beam-free',
+        selectedModel: savedClaudeModel === 'claude-sonnet-4-5' ? 'reflection/beam-free' : savedClaudeModel || 'reflection/beam-free',
         installDependencies: true,
         maxDuration: 300,
         keepAlive: false,
@@ -555,10 +554,12 @@ export function HomePageContent({
   }
 
   return (
-    <div className="home-page-shell flex min-h-screen flex-1 flex-col">
-      <SharedHeader leftActions={headerLeftActions} />
+    <div className="flex-1 bg-background flex flex-col">
+      <div className="p-3">
+        <SharedHeader leftActions={headerLeftActions} initialStars={initialStars} />
+      </div>
 
-      <main className="flex flex-1 items-center justify-center px-4 py-10 sm:py-14">
+      <div className="flex-1 flex items-center justify-center px-4 pb-20 md:pb-4">
         <TaskForm
           onSubmit={handleTaskSubmit}
           isSubmitting={isSubmitting}
@@ -569,8 +570,12 @@ export function HomePageContent({
           initialKeepAlive={initialKeepAlive}
           initialEnableBrowser={initialEnableBrowser}
           maxSandboxDuration={maxSandboxDuration}
+          userName={user?.name?.trim() || user?.username}
         />
-      </main>
+      </div>
+
+      {/* Mobile Footer with Stars and Deploy Button - Show when logged in OR when owner/repo are selected */}
+      {(user || selectedOwner || selectedRepo) && <HomePageMobileFooter initialStars={initialStars} />}
 
       {/* Dialogs */}
       <OpenRepoUrlDialog open={showOpenRepoDialog} onOpenChange={setShowOpenRepoDialog} onSubmit={handleOpenRepoUrl} />
