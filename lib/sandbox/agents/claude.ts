@@ -256,7 +256,9 @@ export async function executeClaudeInSandbox(
     // conservative and configurable without requiring a code change.
     const configuredBudget = Number(process.env.CLAUDE_MAX_BUDGET_USD || '0.10')
     const maxBudgetUsd = Number.isFinite(configuredBudget) && configuredBudget > 0 ? Math.min(configuredBudget, 1) : 0.1
-    const maxTurns = 5
+    const configuredTurns = Number(process.env.CLAUDE_MAX_TURNS)
+    const maxTurns =
+      Number.isInteger(configuredTurns) && configuredTurns > 0 ? Math.min(configuredTurns, 15) : 10
     await logger.info(`Claude cost guard enabled: max $ ${maxBudgetUsd.toFixed(2)} estimated spend, ${maxTurns} turns`)
 
     let fullCommand = `${envPrefix} claude -p --max-turns ${maxTurns} --max-budget-usd ${maxBudgetUsd.toFixed(2)} --model ${shellQuote(modelToUse)} --dangerously-skip-permissions --output-format stream-json --verbose`
