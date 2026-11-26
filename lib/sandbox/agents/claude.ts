@@ -304,17 +304,20 @@ export async function executeClaudeInSandbox(
     let capturedOutput = ''
     let capturedError = ''
     try {
-      const outputRead = await sandbox.runCommand('cat', [outputPath])
-      if (outputRead.exitCode === 0) capturedOutput = await outputRead.stdout()
-      else await logger.error('Claude output file could not be read (exit code ' + outputRead.exitCode + ')')
+      // Read captured files through the Sandbox file API instead of Command.stdout().
+      // stdout()/stderr() depend on the command log stream, which can be unavailable
+      // after a completed command ("Expected a stream of logs").
+      const outputFile = await sandbox.readFileToBuffer({ path: outputPath })
+      if (outputFile) capturedOutput = outputFile.toString('utf8')
+      else await logger.error('Claude output file could not be read')
     } catch (readError) {
       await logger.error(
         'Unable to read Claude output file: ' + (readError instanceof Error ? readError.message : 'unknown error'),
       )
     }
     try {
-      const errorRead = await sandbox.runCommand('cat', [errorPath])
-      if (errorRead.exitCode === 0) capturedError = await errorRead.stdout()
+      const errorFile = await sandbox.readFileToBuffer({ path: errorPath })
+      if (errorFile) capturedError = errorFile.toString('utf8')
     } catch {
       // An empty stderr file may not be present on some sandbox images.
     }
