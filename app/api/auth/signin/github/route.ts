@@ -15,15 +15,12 @@ export async function GET(req: NextRequest): Promise<Response> {
   // redirect_uri always matches the callback registered with GitHub.
   // Keep authenticated "Connect GitHub" flows on their current deployment.
   const canonicalOrigin =
-    process.env.VERCEL_ENV === 'production' ||
-    (process.env.VERCEL_ENV === 'preview' && isSignInFlow)
+    process.env.VERCEL_ENV === 'production' || (process.env.VERCEL_ENV === 'preview' && isSignInFlow)
       ? productionOrigin
       : req.nextUrl.origin
 
   if (isSignInFlow && req.nextUrl.origin !== canonicalOrigin) {
-    return Response.redirect(
-      new URL(`${req.nextUrl.pathname}${req.nextUrl.search}`, canonicalOrigin),
-    )
+    return Response.redirect(new URL(`${req.nextUrl.pathname}${req.nextUrl.search}`, canonicalOrigin))
   }
 
   const clientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID
