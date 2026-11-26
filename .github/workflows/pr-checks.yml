@@ -41,11 +41,9 @@ jobs:
       - name: Run lint
         run: pnpm lint
 
-      - name: Print Prettier-formatted OAuth route
-        run: pnpm prettier app/api/auth/signin/github/route.ts
-
       - name: Run format check
         run: pnpm format:check
 
       - name: Run build
         run: pnpm build
+
