@@ -171,7 +171,7 @@ async function continueTask(
         await logger.info('Attempting to reconnect to existing sandbox')
         console.log('Calling Sandbox.get with sandboxId:', currentTask.sandboxId)
         const reconnectedSandbox = await Sandbox.get({
-          sandboxId: currentTask.sandboxId,
+          name: currentTask.sandboxId,
           teamId: process.env.SANDBOX_VERCEL_TEAM_ID!,
           projectId: process.env.SANDBOX_VERCEL_PROJECT_ID!,
           token: process.env.SANDBOX_VERCEL_TOKEN!,
