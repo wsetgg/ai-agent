@@ -22,7 +22,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'Plainvest AI',
   description:
-    'A private AI coding workspace for building, fixing, and exploring software with multiple coding agents.'
+    'A private AI coding workspace for building, fixing, and exploring software with multiple coding agents.',
 }
 
 export default function RootLayout({

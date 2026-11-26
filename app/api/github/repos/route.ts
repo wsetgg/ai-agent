@@ -76,9 +76,7 @@ export async function GET(request: NextRequest) {
       }
 
       const repos: GitHubRepo[] = await response.json()
-      accessibleRepos.push(
-        ...repos.filter((repo) => repo.owner.login.toLowerCase() === owner.toLowerCase()),
-      )
+      accessibleRepos.push(...repos.filter((repo) => repo.owner.login.toLowerCase() === owner.toLowerCase()))
 
       if (repos.length < perPage) {
         break
