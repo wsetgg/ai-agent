@@ -8,11 +8,18 @@ export async function GET(req: NextRequest): Promise<Response> {
   // Check if user is already authenticated with Vercel
   const session = await getSessionFromReq(req)
   const isSignInFlow = !session?.user
-  const canonicalOrigin =
-    process.env.VERCEL_ENV === 'production' ? 'https://ai-agent-plainvest.vercel.app' : req.nextUrl.origin
+  const productionOrigin = 'https://ai-agent-plainvest.vercel.app'
 
-  // Always start production GitHub sign-in on the stable app domain so the
-  // OAuth callback matches the URL registered with GitHub.
+  // GitHub OAuth has one registered callback URL. Start sign-in flows from
+  // the stable production domain in both Production and Preview so the
+  // redirect_uri always matches the callback registered with GitHub.
+  // Keep authenticated "Connect GitHub" flows on their current deployment.
+  const canonicalOrigin =
+    process.env.VERCEL_ENV === 'production' ||
+    (process.env.VERCEL_ENV === 'preview' && isSignInFlow)
+      ? productionOrigin
+      : req.nextUrl.origin
+
   if (isSignInFlow && req.nextUrl.origin !== canonicalOrigin) {
     return Response.redirect(new URL(`${req.nextUrl.pathname}${req.nextUrl.search}`, canonicalOrigin))
   }
