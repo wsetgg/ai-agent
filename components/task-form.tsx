@@ -72,9 +72,7 @@ const AGENT_MODELS = {
     { value: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5' },
     { value: 'claude-haiku-5-5', label: 'Claude Haiku 5.5' },
   ],
-  opencode: [
-    { value: 'nvidia/minimaxai/minimax-m3.1-flash', label: 'MiniMax M3.1 Flash (NVIDIA)' },
-  ],
+  opencode: [{ value: 'nvidia/minimaxai/minimax-m3.1-flash', label: 'MiniMax M3.1 Flash (NVIDIA)' }],
 } as const
 
 // Default models for each agent

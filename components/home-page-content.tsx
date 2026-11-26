@@ -231,7 +231,10 @@ export function HomePageContent({
         prompt: 'Work on this repository',
         repoUrl: repoUrl,
         selectedAgent: localStorage.getItem('last-selected-agent') || 'claude',
-        selectedModel: savedClaudeModel === 'claude-sonnet-4-5' ? 'reflection/beam-free' : savedClaudeModel || 'reflection/beam-free',
+        selectedModel:
+          savedClaudeModel === 'claude-sonnet-4-5'
+            ? 'reflection/beam-free'
+            : savedClaudeModel || 'reflection/beam-free',
         installDependencies: true,
         maxDuration: 300,
         keepAlive: false,

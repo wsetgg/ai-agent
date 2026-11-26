@@ -106,10 +106,9 @@ export async function GET(req: NextRequest): Promise<Response> {
 
     if (!userResponse.ok) {
       console.error('[GitHub Callback] Token validation failed with status:', userResponse.status)
-      return new Response(
-        'GitHub did not accept the authorization. Please restart the GitHub connection flow.',
-        { status: 401 },
-      )
+      return new Response('GitHub did not accept the authorization. Please restart the GitHub connection flow.', {
+        status: 401,
+      })
     }
 
     const githubUser = (await userResponse.json()) as {

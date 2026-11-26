@@ -223,7 +223,10 @@ export async function executeClaudeInSandbox(
 
     // Log what we're trying to do
     const requestedModel = selectedModel?.trim()
-    const modelToUse = requestedModel && (/^(sonnet|opus|haiku)$/i.test(requestedModel) || /^claude-/i.test(requestedModel)) ? requestedModel : 'sonnet'
+    const modelToUse =
+      requestedModel && (/^(sonnet|opus|haiku)$/i.test(requestedModel) || /^claude-/i.test(requestedModel))
+        ? requestedModel
+        : 'sonnet'
     if (logger) {
       await logger.info('Attempting to execute Claude CLI...')
     }
@@ -252,9 +255,7 @@ export async function executeClaudeInSandbox(
     // Claude Code client-side estimate (not a hard billing guarantee); keep it
     // conservative and configurable without requiring a code change.
     const configuredBudget = Number(process.env.CLAUDE_MAX_BUDGET_USD || '0.10')
-    const maxBudgetUsd = Number.isFinite(configuredBudget) && configuredBudget > 0
-      ? Math.min(configuredBudget, 1)
-      : 0.10
+    const maxBudgetUsd = Number.isFinite(configuredBudget) && configuredBudget > 0 ? Math.min(configuredBudget, 1) : 0.1
     const maxTurns = 5
     await logger.info(`Claude cost guard enabled: max $ ${maxBudgetUsd.toFixed(2)} estimated spend, ${maxTurns} turns`)
 
@@ -307,7 +308,9 @@ export async function executeClaudeInSandbox(
       if (outputRead.exitCode === 0) capturedOutput = await outputRead.stdout()
       else await logger.error('Claude output file could not be read (exit code ' + outputRead.exitCode + ')')
     } catch (readError) {
-      await logger.error('Unable to read Claude output file: ' + (readError instanceof Error ? readError.message : 'unknown error'))
+      await logger.error(
+        'Unable to read Claude output file: ' + (readError instanceof Error ? readError.message : 'unknown error'),
+      )
     }
     try {
       const errorRead = await sandbox.runCommand('cat', [errorPath])
@@ -324,7 +327,8 @@ export async function executeClaudeInSandbox(
     })
 
     if (commandResult.exitCode !== 0) {
-      const detail = capturedError.trim() || capturedOutput.trim() || 'Claude CLI exited with code ' + commandResult.exitCode
+      const detail =
+        capturedError.trim() || capturedOutput.trim() || 'Claude CLI exited with code ' + commandResult.exitCode
       await logger.error(redactSensitiveInfo(detail))
       throw new Error(detail)
     }
@@ -346,7 +350,10 @@ export async function executeClaudeInSandbox(
                 const input = contentBlock.input || {}
                 let statusMsg = ''
                 if (contentBlock.name === 'Write' || contentBlock.name === 'Edit' || contentBlock.name === 'Read') {
-                  statusMsg = (contentBlock.name === 'Read' ? 'Reading' : 'Editing') + ' ' + (input.path || input.file_path || 'file')
+                  statusMsg =
+                    (contentBlock.name === 'Read' ? 'Reading' : 'Editing') +
+                    ' ' +
+                    (input.path || input.file_path || 'file')
                 } else if (contentBlock.name === 'Glob') {
                   statusMsg = 'Searching files: ' + (input.pattern || '*')
                 } else if (contentBlock.name === 'Bash') {
@@ -368,9 +375,12 @@ export async function executeClaudeInSandbox(
       }
 
       const responseContent = accumulatedContent.trim() || finalResult.trim()
-      await db.update(taskMessages)
+      await db
+        .update(taskMessages)
         .set({
-          content: responseContent || 'Claude finished without returning readable response text. This task is marked as failed so it can be retried safely.',
+          content:
+            responseContent ||
+            'Claude finished without returning readable response text. This task is marked as failed so it can be retried safely.',
         })
         .where(eq(taskMessages.id, agentMessageId))
 
