@@ -21,7 +21,9 @@ export async function GET(req: NextRequest): Promise<Response> {
       : req.nextUrl.origin
 
   if (isSignInFlow && req.nextUrl.origin !== canonicalOrigin) {
-    return Response.redirect(new URL(`${req.nextUrl.pathname}${req.nextUrl.search}`, canonicalOrigin))
+    return Response.redirect(
+      new URL(`${req.nextUrl.pathname}${req.nextUrl.search}`, canonicalOrigin),
+    )
   }
 
   const clientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID
