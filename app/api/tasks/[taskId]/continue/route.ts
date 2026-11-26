@@ -162,7 +162,7 @@ async function continueTask(
     // Try to reconnect to existing sandbox if keepAlive was enabled
     console.log('Checking for existing sandbox:', {
       hasSandboxId: !!currentTask.sandboxId,
-      sandboxId: currentTask.sandboxId,
+      name: currentTask.sandboxId,
       keepAlive: currentTask.keepAlive,
     })
 
@@ -235,7 +235,7 @@ async function continueTask(
       await db
         .update(tasks)
         .set({
-          sandboxId: sandbox?.sandboxId || undefined,
+          sandboxId: sandbox?.name || undefined,
           sandboxUrl: domain || undefined,
           updatedAt: new Date(),
         })
